@@ -16,3 +16,9 @@ Nous avons eu un appel de groupe où on a échangé sur les potentiels algos sur
 On a aussi parlé de l'algorithme évoqué dans le cours qui se base sur une approche Tetris, il nous a paru assez compliqué à configurer, on pense que ça peut être un meilleur choix que l'algorithme de Kruskal afin d'obtenir un labyrinthe très ressemblant à Pac-Man.
 
 Pour l'instant on part sur l'approche évoqué le matin en attendant de voir si on peut modifier cette structure par l'approche Tetris.
+
+
+Vendredi 10/10:
+Beaucoup de réflexions sur un passage à un algo basé sur des structures fixes type 'Tétris' qu'on pose aléatoirement de manière symétrique afin d'avoir un visuel de labyrinthe se rapprochant plus du pac-man.
+C'est encore en chantier, j'arrive pas à voir comment bien aborder cette démarche. 
+En attendant, j'ai mis le labyrinthe généré par l'algorithme effectué la veille.
