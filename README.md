@@ -19,11 +19,17 @@ export PATH=$JAVA_HOME/bin:$PATH
 # Vérifier que tout est bien configuré
 mvn -v
 
+# Pour une compilation rapide (sans tests)
+mvn -q -DskipTests=true compile
+
 # Pour nettoyer, compiler et juste créer le fichier .jar
 mvn clean package
 
-# Compiler et executer le projet 
+# Compiler et executer le projet (avec les paramètres par défaut)
 mvn compile exec:java
+
+# Compiler et executer le projet (avec options personnalisés)
+mvn compile exec:java -Dexec.args="--seed <valeur> --imperfection <valeur>"
 
 
 
