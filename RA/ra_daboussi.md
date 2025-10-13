@@ -22,3 +22,15 @@ Vendredi 10/10:
 Beaucoup de réflexions sur un passage à un algo basé sur des structures fixes type 'Tétris' qu'on pose aléatoirement de manière symétrique afin d'avoir un visuel de labyrinthe se rapprochant plus du pac-man.
 C'est encore en chantier, j'arrive pas à voir comment bien aborder cette démarche. 
 En attendant, j'ai mis le labyrinthe généré par l'algorithme effectué la veille.
+
+Dimanche 12/10 :
+La veille nous avons vu en groupe l'avancement de l'algorithme basé sur des formes Tetris. Beaucoup de questionnement sur cette approche ont été soulevés, notamment sur la complexité du vrai algo Tetris qu'on souhaite obtenir et la logique de placement des pièces qui était pas du tout respectée et beaucoup trop complexe à développer. 
+De ce fait nous avons décidé de repartir sur une approche plus classique comme on l'avait bien fait, et à partir de ça essayer de bien optimiser la logique de génération de sorte à se rapprocher dans les semaines à venir d'un labyrinthe Pac-Man.
+
+De plus, pour des raisons de performance, d'écosystème etc, nous avons décidé de passer sur du Java plutot que de rester sur Python.
+
+Lundi 13/10 :
+Je me suis chargé de configurer l'environnement Maven et mettre en place le pom.xml pour automatiser la compilation et la gestion des dépendances du projet.
+J'ai aussi mis en place le README de sorte à fournir toutes les informations nécessaires de compilation, d'execution et les commandes Maven utiles pour le développement.
+Etant passé sur du Java, j'ai traduit l'algorithme de génération de labyrinthe basé sur l'algo de Kruskal du python en Java. Bien evidemment je me suis aidé de ChatGPT pour éviter de devoir tout réécrire dès le début, ce qui n'a pas trop d'interêt.
+C'est pour cela qu'une refactorisation est prévue pour améliorer toute la structure du code, qui pour l'instant n'est pas "très propre".
