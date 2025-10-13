@@ -1,0 +1,14 @@
+# Dossier des fichiers compilés par Maven
+target/
+
+# Dossier de logs/rapports générés
+20251013080047/
+
+# Logs et fichiers temporaires
+*.log
+*.tmp
+
+# Fichiers de configuration des IDE
+.idea/
+.vscode/
+*.iml
