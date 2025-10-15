@@ -38,3 +38,4 @@ C'est pour cela qu'une refactorisation est prévue pour améliorer toute la stru
 Mercredi 15/10 :
 Je me suis chargé de refactoriser MazeGenerator.java pour établir une architecture propre et plus lisible.
 Le projet est maintenant organisé en packages distincts : Main.java qui est le programme principal, model/ qui contient les classes de données qui décrivent la structure du labyrinthe, à savoir Maze, CellState et Point. Enfin, generator/ qui isole la logique de l'algorithme de génération avec MazeGenerator et WallPair. 
+De plus j'ai commencé à regarder comment représenter le JSON pour représenter le maze afin de se préparer à la séance du vendredi.
