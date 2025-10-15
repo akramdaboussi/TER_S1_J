@@ -34,3 +34,7 @@ Je me suis chargé de configurer l'environnement Maven et mettre en place le pom
 J'ai aussi mis en place le README de sorte à fournir toutes les informations nécessaires de compilation, d'execution et les commandes Maven utiles pour le développement.
 Etant passé sur du Java, j'ai traduit l'algorithme de génération de labyrinthe basé sur l'algo de Kruskal du python en Java. Bien evidemment je me suis aidé de ChatGPT pour éviter de devoir tout réécrire dès le début, ce qui n'a pas trop d'interêt.
 C'est pour cela qu'une refactorisation est prévue pour améliorer toute la structure du code, qui pour l'instant n'est pas "très propre".
+
+Mercredi 15/10 :
+Je me suis chargé de refactoriser MazeGenerator.java pour établir une architecture propre et plus lisible.
+Le projet est maintenant organisé en packages distincts : Main.java qui est le programme principal, model/ qui contient les classes de données qui décrivent la structure du labyrinthe, à savoir Maze, CellState et Point. Enfin, generator/ qui isole la logique de l'algorithme de génération avec MazeGenerator et WallPair. 
