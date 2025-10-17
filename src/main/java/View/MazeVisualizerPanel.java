@@ -24,11 +24,11 @@ public class MazeVisualizerPanel extends JPanel {
             for (int x = 0; x < mazeGrid[y].length; x++) {
                 // On choisit la couleur en fonction du chiffre dans la grille
                 switch (mazeGrid[y][x]) {
-                    case 0: g.setColor(Color.BLACK); break; // SOL
-                    case 1: g.setColor(Color.WHITE); break; // MUR
-                    case 2: g.setColor(Color.WHITE); break; // MUR_PERMANENT
-                    case 3: g.setColor(Color.BLACK); break; // GHOST_HOUSE
-                    case 4: g.setColor(Color.BLACK); break; // TUNNEL
+                    case 0: g.setColor(Color.WHITE); break; // SOL
+                    case 1: g.setColor(Color.GRAY); break; // MUR
+                    case 2: g.setColor(Color.GRAY); break; // MUR_PERMANENT
+                    case 3: g.setColor(Color.WHITE); break; // GHOST_HOUSE
+                    case 4: g.setColor(Color.WHITE); break; // TUNNEL
                     default: g.setColor(Color.RED); break;  // Erreur
                 }
                 // On dessine le carré
