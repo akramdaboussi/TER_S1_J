@@ -46,7 +46,7 @@ public class Main {
         System.out.println("Génération du labyrinthe... (seed=" + seed + ")");
         Random random = new Random(seed);
 
-        // Crée un labyrinthe vide
+        // Crée un labyrinthe vide (que des murs)
         Maze maze = new Maze(WIDTH, HEIGHT);
         
         // Applique la structure de base (murs extérieurs, maison des fantômes)
