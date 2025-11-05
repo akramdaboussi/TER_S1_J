@@ -24,11 +24,15 @@ mvn -q -DskipTests=true compile
 # Pour nettoyer, compiler et juste créer le fichier .jar
 mvn clean package
 
-# Compiler et executer le projet (avec les paramètres par défaut)
-mvn compile exec:java
+# Executer le JAR
+Lance le service sur le port 4567 (par défaut) ou le port spécifié par la variable PORT.
+java -jar target/pac-man-generator-1.0-SNAPSHOT-jar-with-dependencies.jar
 
-# Compiler et executer le projet (avec options personnalisés)
-mvn compile exec:java -Dexec.args="--seed <valeur> --imperfection <valeur>"
+# Pour lancer sur un port spécifique (ex: 8000) en local :
+PORT=8000 java -jar target/pac-man-generator-1.0-SNAPSHOT-jar-with-dependencies.jar
 
+# Tester l'API après le lancement du serveur
+Ouvrir dans le navigateur : http://localhost:<votre_port>/api/labyrinthe
 
-
+Exemple avec des paramètres :
+http://localhost:8080/api/labyrinthe?width=30&height=30&imperfection=0.1

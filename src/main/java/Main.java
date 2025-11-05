@@ -1,14 +1,12 @@
 import java.util.Random;
-import javax.swing.*;
 import com.google.gson.Gson;
 import Generator.*;
 import Model.*;
-import View.*;
+import static spark.Spark.*;
 
 /*
  * Classe principale de l'application.
- * Gère la configuration, l'analyse des arguments de la ligne de commande,
- * et effectue la génération et l'affichage du labyrinthe.
+ * Configure et lance le serveur HTTP Spark Java.
 */
 public class Main {
 
@@ -17,62 +15,76 @@ public class Main {
     private static final int HEIGHT = 31;
     private static double IMPERFECTION_PERCENTAGE = 0.2; // 20% (peut être modifié via les arguments)
 
-    /*
-     * Point d'entrée du programme.
-     * @param args Arguments de la ligne de commande (--seed, --imperfection).
-    */
     public static void main(String[] args) {
-        long seed = System.currentTimeMillis();
-        double imperfection = IMPERFECTION_PERCENTAGE;
-
-        // Analyse des arguments pour surcharger la configuration par défaut
-        for (int i = 0; i < args.length; i++) {
-            if (args[i].equals("--seed") && i + 1 < args.length) {
-                try {
-                    seed = Long.parseLong(args[i + 1]);
-                } catch (NumberFormatException e) {
-                    System.err.println("Erreur: Le seed doit être un nombre entier.");
-                }
-            }
-            if (args[i].equals("--imperfection") && i + 1 < args.length) {
-                try {
-                    imperfection = Double.parseDouble(args[i + 1]);
-                } catch (NumberFormatException e) {
-                    System.err.println("Erreur: L'imperfection doit être un nombre");
-                }
-            }
-        }
-
-        System.out.println("Génération du labyrinthe... (seed=" + seed + ")");
-        Random random = new Random(seed);
-
-        // Crée un labyrinthe vide (que des murs)
-        Maze maze = new Maze(WIDTH, HEIGHT);
+        // 1. Configuration du Port pour le déploiement Cloud (Render)
+        // Lit la variable d'environnement PORT (fournie par Render) ou utilise 4567 par défaut
+        String portStr = System.getenv("PORT");
+        int port = portStr != null ? Integer.parseInt(portStr) : 4567;
+        port(port);
         
-        // Applique la structure de base (murs extérieurs, maison des fantômes)
-        maze.applyTemplate();
+        System.out.println("Démarrage du Maze Generator sur le port: " + port);
+        // Définition de l'API: GET /api/labyrinthe
+        get("/api/labyrinthe", (request, response) -> {
+            // Lecture et parsing des paramètres de la requête
+            // Largeur (width)
+            int width = getQueryInt(request.queryParams("width"), WIDTH);
+            // Hauteur (height)
+            int height = getQueryInt(request.queryParams("height"), HEIGHT);
+            // Seed (pour reproductibilité)
+            long seed = getQueryLong(request.queryParams("seed"), System.currentTimeMillis());
+            // Imperfection (pourcentage)
+            double imperfection = getQueryDouble(request.queryParams("imperfection"), IMPERFECTION_PERCENTAGE);
 
-        // Instancie un générateur et lance l'algorithme sur le labyrinthe
-        MazeGenerator generator = new MazeGenerator();
-        generator.generate(maze, random, imperfection);
+            // Validation de base pour la symétrie (comme dans votre constructeur Maze)
+            if (width % 2 != 0) {
+                 response.status(400); // Bad Request
+                 return "{\"error\": \"La largeur doit être paire pour une symétrie parfaite.\"}";
+            }
+            System.out.println("Génération du labyrinthe: HEIGHT=" + height + ", WIDTH=" + width + ", Seed=" + seed + ", Imperfection=" + imperfection);
 
-        // Création du JSON
-        String mazeAsJsonString = maze.toJsonString();
+            // Logique de Génération 
+            System.out.println("Génération du labyrinthe... (seed=" + seed + ")");
+            Random random = new Random(seed);
+            // Crée un labyrinthe vide (que des murs)
+            Maze maze = new Maze(width, height);
+            // Applique la structure de base (murs extérieurs, maison des fantômes)
+            maze.applyTemplate();
+            // Instancie un générateur et lance l'algorithme sur le labyrinthe
+            MazeGenerator generator = new MazeGenerator();
+            generator.generate(maze, random, imperfection);
 
-        // Lecture du JSON et affichage graphique
-        Gson gson = new Gson();
-        MazeData dataFromJSON = gson.fromJson(mazeAsJsonString, MazeData.class);
-
-        SwingUtilities.invokeLater(() -> {
-            JFrame frame = new JFrame("Représentation Graphique du JSON");
-            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            frame.add(new MazeVisualizerPanel(dataFromJSON.grid()));
-            frame.pack();
-            frame.setLocationRelativeTo(null);
-            frame.setVisible(true);
+            // Configuration et Retour de la Réponse JSON
+            response.type("application/json");
+            // Utilise votre méthode existante toJsonString() pour créer le JSON
+            return maze.toJsonString(); 
         });
 
-         // Affiche le JSON dans la console
-        System.out.println(mazeAsJsonString);
+        // Route d'accueil simple
+        get("/", (request, response) -> "Bienvenue à tous ! Utilisez /api/labyrinthe pour générer un labyrinthe.");
+    }
+
+    // Méthodes utilitaires pour parser les paramètres de requête avec valeurs par défaut
+    private static int getQueryInt(String param, int defaultValue) {
+        try {
+            return param != null ? Integer.parseInt(param) : defaultValue;
+        } catch (NumberFormatException e) {
+            return defaultValue;
+        }
+    }
+
+    private static long getQueryLong(String param, long defaultValue) {
+        try {
+            return param != null ? Long.parseLong(param) : defaultValue;
+        } catch (NumberFormatException e) {
+            return defaultValue;
+        }
+    }
+
+    private static double getQueryDouble(String param, double defaultValue) {
+        try {
+            return param != null ? Double.parseDouble(param) : defaultValue;
+        } catch (NumberFormatException e) {
+            return defaultValue;
+        }
     }
 }
