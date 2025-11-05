@@ -2,7 +2,7 @@ package Generator;
 
 import java.util.*;
 import Model.*;
-
+//TODO
 /*
  * Contient la logique de génération du labyrinthe.
  * Utilise un algorithme de Kruskal modifié pour garantir une symétrie horizontale
