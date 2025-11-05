@@ -1,5 +1,5 @@
 # Utilise une image de base qui contient Maven et Java 21 (votre version cible).
-FROM maven:3.8.7-eclipse-temurin-21 AS build
+FROM maven:3.9.6-eclipse-temurin-21 AS build
 
 # Crée le répertoire de travail dans le conteneur
 WORKDIR /app
