@@ -13,6 +13,8 @@ public class Main {
     private static final int WIDTH = 28;
     private static final int HEIGHT = 31;
     private static double IMPERFECTION_PERCENTAGE = 0.2; // 20% (peut être modifié via les arguments)
+    private static final String API_ENDPOINT = "/api/labyrinthe"; 
+
 
     public static void main(String[] args) {
         // 1. Configuration du Port pour le déploiement Cloud (Render)
@@ -23,7 +25,7 @@ public class Main {
         
         System.out.println("Démarrage du Maze Generator sur le port: " + port);
         // Définition de l'API: GET /api/labyrinthe
-        get("/api/labyrinthe", (request, response) -> {
+        get( API_ENDPOINT, (request, response) -> {
             // Lecture et parsing des paramètres de la requête
             // Largeur (width)
             int width = getQueryInt(request.queryParams("width"), WIDTH);
