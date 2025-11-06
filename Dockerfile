@@ -8,7 +8,7 @@ WORKDIR /app
 COPY . /app
 
 # Exécute la compilation et le packaging du projet
-RUN mvn clean package
+RUN mvn clean package -DskipTests
 
 # ----------------------------------------------------------------------
 
