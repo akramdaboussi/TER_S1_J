@@ -7,8 +7,8 @@ WORKDIR /app
 # Copie tous les fichiers du dépôt local dans le répertoire de travail du conteneur
 COPY . /app
 
-# Exécute la compilation et le packaging du projet, en sautant les tests pour accélérer le processus
-RUN mvn clean package -DskipTests
+# Exécute la compilation et le packaging du projet
+RUN mvn clean package
 
 # ----------------------------------------------------------------------
 
