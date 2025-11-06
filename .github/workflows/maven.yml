@@ -1,0 +1,30 @@
+name: Java CI avec Maven
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest # Environnement standard Linux pour la construction
+
+    steps:
+    - uses: actions/checkout@v4 # Récupération du code source
+    
+    - name: Configuration de Java 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21' 
+        distribution: 'temurin'
+        cache: maven
+
+    - name: Exécution des Tests (La Porte de Qualité CI)
+      # On exécute d'abord la phase 'test' pour le CI
+      # Si les tests MazeTest.java et ApiIntegrationTest.java échouent, le workflow s'arrête ici
+      run: mvn clean test
+      
+    - name: Construction du JAR (Package)
+      # Seulement si les tests ont réussi, on procède à la construction du fichier .jar
+      run: mvn -B package
