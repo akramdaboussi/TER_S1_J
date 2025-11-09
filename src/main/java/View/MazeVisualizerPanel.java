@@ -2,6 +2,7 @@ package View;
 
 import javax.swing.JPanel;
 import java.awt.*;
+import java.awt.geom.Line2D;
 
 public class MazeVisualizerPanel extends JPanel {
 
@@ -19,57 +20,63 @@ public class MazeVisualizerPanel extends JPanel {
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         Graphics2D g2d = (Graphics2D) g;
-        
-        // Active l'anti-aliasing pour des bords plus lisses
+
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
 
-        // Taille des coins arrondis pour les murs
-        int arcSize = CELL_SIZE / 2;
+        Color wallColor = new Color(0, 0, 200); // Bleu Pacman
+        int halfCell = CELL_SIZE / 2;
+        
+        // Crée un style de trait avec des extrémités et des jointures arrondies
+        Stroke roundedWallStroke = new BasicStroke(
+            CELL_SIZE, 
+            BasicStroke.CAP_ROUND,  // Extrémités de ligne arrondies 
+            BasicStroke.JOIN_ROUND // Jointures arrondies
+        );
 
+        // Étape 1: Remplir le fond en noir
+        g2d.setColor(Color.BLACK);
+        g2d.fillRect(0, 0, getWidth(), getHeight());
+
+        g2d.setColor(wallColor);
+        g2d.setStroke(roundedWallStroke);
+
+        // Étape 2: Dessiner les murs avec des segments arrondis
         for (int y = 0; y < mazeGrid.length; y++) {
             for (int x = 0; x < mazeGrid[y].length; x++) {
-                int cellValue = mazeGrid[y][x]; 
-                int cellX = x * CELL_SIZE;
-                int cellY = y * CELL_SIZE;
-                
-                switch (cellValue) {
-                    case 0: 
-                    case 3: // Ghost House
-                    case 4: // Tunnel
-                        g2d.setColor(Color.BLACK); 
-                        g2d.fillRect(cellX, cellY, CELL_SIZE, CELL_SIZE);
-                        break;
+                if (est_mur(y, x)) {
+                    int centerX = x * CELL_SIZE + halfCell;
+                    int centerY = y * CELL_SIZE + halfCell;
+                    
+                    // Dessiner une ligne vers le bas si le voisin du bas n'est pas un mur
+                    if (!est_mur(y + 1, x)) {
+                        // Dessiner une courte ligne centrée verticalement pour la case seule
+                        g2d.draw(new Line2D.Float(centerX, centerY, centerX, centerY));
+                    }
 
-                    case 1: // Mur
-                    case 2: // Mur permanent
-                        g2d.setColor(new Color(0,0,200)); 
-                        g2d.fillRect(cellX, cellY, CELL_SIZE, CELL_SIZE);
-                        int voisins_mur = 0;
-                        if (est_mur(y - 1, x)) voisins_mur++; 
-                        if (est_mur(y + 1, x)) voisins_mur++; 
-                        if (est_mur(y, x - 1)) voisins_mur++; 
-                        if (est_mur(y, x + 1)) voisins_mur++;
-                        if (voisins_mur > 1) { 
-                        } else {
-                            g2d.setColor(new Color(0,0,200)); 
-                            g2d.fillRoundRect(cellX, cellY, CELL_SIZE, CELL_SIZE, arcSize, arcSize);
-                        }
-                        break;
-                    default: 
-                        g2d.setColor(Color.RED); 
-                        g2d.fillRect(cellX, cellY, CELL_SIZE, CELL_SIZE);
-                        break;
+                    // --- Dessin des segments de mur ---
+                    
+                    // Ligne horizontale vers la droite (pour couvrir les segments de mur horizontal)
+                    if (est_mur(y, x + 1)) {
+                        // Dessine la ligne du centre de la cellule actuelle au centre de la suivante
+                        g2d.draw(new Line2D.Float(centerX, centerY, centerX + CELL_SIZE, centerY));
+                    }
+
+                    // Ligne verticale vers le bas (pour couvrir les segments de mur vertical)
+                    if (est_mur(y + 1, x)) {
+                        // Dessine la ligne du centre de la cellule actuelle au centre de la suivante
+                        g2d.draw(new Line2D.Float(centerX, centerY, centerX, centerY + CELL_SIZE));
+                    }
                 }
             }
         }
     }
 
     private boolean est_mur(int y, int x) {
-        // Vérification des limites
         if (x < 0 || x >= mazeGrid[0].length || y < 0 || y >= mazeGrid.length) {
             return false;
         }
         int value = mazeGrid[y][x];
-        return value == 1 || value == 2; 
+        return value == 1 || value == 2;
     }
 }
