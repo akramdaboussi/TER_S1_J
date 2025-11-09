@@ -40,7 +40,7 @@ public class Maze {
         // Murs permanents sur les contours
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
-                if (y == 0 || y == height - 1 || x == 0 || x == width - 1) {
+                if (y <= 1 || y >= height - 2 || x <= 1 || x >= width - 2) {
                     grid[y][x] = CellState.MUR_PERMANENT;
                 }
             }
@@ -59,9 +59,35 @@ public class Maze {
         grid[ghYStart][width / 2 - 1] = CellState.SOL; 
         grid[ghYStart][width / 2] = CellState.SOL;
 
+        for (int yClear = ghYStart - 1; yClear <= ghYStart + 5; yClear++) {
+            for (int xClear = ghXStart - 1; xClear <= ghXStart + 8; xClear++) {
+                // On s'assure que l'on n'est pas sur la bordure permanente du maze
+                if (xClear > 1 && xClear < width - 2 && yClear > 1 && yClear < height - 2) {
+                    CellState current = grid[yClear][xClear];
+                    // Si la cellule est un MUR simple
+                    if (current == CellState.MUR) {
+                        // On la transforme en SOL
+                        grid[yClear][xClear] = CellState.SOL;
+                    }
+                }
+            }
+        }
+
         // Tunnels sur les côtés
         int tunnelY = height / 2;
         if (tunnelY % 2 != 0) tunnelY++; // S'assure que le tunnel est sur une ligne paire si besoin
+        for (int x = 2; x < width - 2; x++) {
+            if (grid[tunnelY][x] != CellState.MUR_PERMANENT && grid[tunnelY][x] != CellState.GHOST_HOUSE) {
+                grid[tunnelY][x] = CellState.SOL;
+            }
+        }
+        int x_in = 2; // La cellule SOL à l'intérieur du 2e contour à gauche.
+        int x_out = width - 3; // La cellule SOL à l'intérieur du 2e contour à droite.
+
+        grid[tunnelY - 1][x_in] = CellState.SOL;
+        grid[tunnelY + 1][x_in] = CellState.SOL;
+        grid[tunnelY - 1][x_out] = CellState.SOL;
+        grid[tunnelY + 1][x_out] = CellState.SOL;
         grid[tunnelY][0] = CellState.TUNNEL;
         grid[tunnelY][width - 1] = CellState.TUNNEL;
         grid[tunnelY][1] = CellState.SOL;
