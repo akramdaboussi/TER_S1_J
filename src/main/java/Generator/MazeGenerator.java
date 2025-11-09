@@ -6,7 +6,7 @@ import Model.*;
 /*
  * Contient la logique de génération du labyrinthe.
  * Utilise un algorithme de Kruskal modifié pour garantir une symétrie horizontale
- * et générer des chemins aléatoires avec des imperfections contrôlables.
+ * et générer des chemins aléatoires tout en évitant les culs-de-sac.
 */
 public class MazeGenerator {
 
@@ -14,9 +14,8 @@ public class MazeGenerator {
      * Génère la structure du labyrinthe en modifiant l'objet Maze fourni.
      * @param maze L'objet Maze à modifier.
      * @param random L'instance de Random pour le caractère aléatoire.
-     * @param imperfection Le pourcentage de murs supplémentaires à retirer (0.0 à 1.0).
     */
-    public void generate(Maze maze, Random random, double imperfection) {
+    public void generate(Maze maze, Random random) {
         int width = maze.getWidth();
         int height = maze.getHeight();
         Map<Point, Integer> sets = new HashMap<>();
@@ -26,6 +25,7 @@ public class MazeGenerator {
         // Chaque salle est une cellule isolée au début.
         for (int y = 2; y < height - 2; y += 2) {
             for (int x = 2; x < width - 2; x += 2) {
+                // S'assure que l'initialisation commence après le 2e contour (y=2, x=2).
                 if (maze.getState(x, y) == CellState.MUR) {
                     sets.put(new Point(x, y), setCounter++);
                 }
@@ -64,8 +64,8 @@ public class MazeGenerator {
             }
         }
 
-        // Ajoute des imperfections en cassant des murs supplémentaires.
-        addImperfections(maze, remainingWallPairs, random, imperfection);
+        // Suppression des culs-de-sac pour créer des boucles supplémentaires
+        removeDeadEnds(maze, random);
     }
 
     /*
@@ -79,22 +79,65 @@ public class MazeGenerator {
         maze.setState(pair.symCell1(), CellState.SOL);
         maze.setState(pair.symCell2(), CellState.SOL);
     }
-
+    
     /*
-     * Ajoute des boucles en retirant un certain pourcentage des murs restants.
+     * Supprimme les culs-de-sac en cassant des murs de manière symétrique
     */
-    private void addImperfections(Maze maze, List<WallPair> remainingWalls, Random random, double imperfection) {
-        int numToRemove = (int) (remainingWalls.size() * imperfection);
-        Collections.shuffle(remainingWalls, random);
-        for (int i = 0; i < numToRemove; i++) {
-            WallPair pair = remainingWalls.get(i);
-            if (maze.getState(pair.wall().x(), pair.wall().y()) == CellState.MUR) {
-                maze.setState(pair.wall(), CellState.SOL);
+    private void removeDeadEnds(Maze maze, Random random) {
+        int width = maze.getWidth();
+        int height = maze.getHeight();
+        boolean deadEndRemoved;
+        
+        // Directions (dx, dy) pour les 4 voisins
+        int[][] directions = {{0, 1}, {0, -1}, {1, 0}, {-1, 0}};
+
+        do {
+            deadEndRemoved = false;
+            for (int y = 2; y < height - 1; y++) {
+                for (int x = 2; x < width / 2; x++) { // Parcourt seulement la moitié gauche
+                    if (maze.getState(x, y) != CellState.SOL) {
+                        continue;
+                    }
+                    // On détecte le cul-de-sac : cellule SOL n'ayant qu'un seul voisin SOL
+                    int solNeighbors = 0;
+                    for (int[] dir : directions) {
+                        int nx = x + dir[0];
+                        int ny = y + dir[1];
+                        // Vérifie que la cellule voisine est dans les limites et est du SOL
+                        if (nx > 0 && nx < width - 1 && ny > 0 && ny < height - 1 && maze.getState(nx, ny) == CellState.SOL) {
+                            solNeighbors++;
+                        }
+                    }
+
+                    if (solNeighbors == 1) {
+                        // On trouve un mur cassable (MUR simple avec symétrique MUR simple)
+                        List<Point> breakableWalls = new ArrayList<>();
+                        for (int[] dir : directions) {
+                            Point wall = new Point(x + dir[0], y + dir[1]);
+                            int symX = width - 1 - wall.x();
+                            // On vérifie que le mur est un MUR ET que son symétrique est aussi un MUR
+                            if (maze.getState(wall.x(), wall.y()) == CellState.MUR && maze.getState(symX, wall.y()) == CellState.MUR) {
+                                 breakableWalls.add(wall);
+                            }
+                        }
+
+                        // On casse s'il y a un choix
+                        if (!breakableWalls.isEmpty()) {
+                            Collections.shuffle(breakableWalls, random); 
+                            Point wallToBreak = breakableWalls.get(0);
+                            int symX = width - 1 - wallToBreak.x();
+
+                            // On casse le mur et son symétrique
+                            maze.setState(wallToBreak, CellState.SOL);
+                            maze.setState(new Point(symX, wallToBreak.y()), CellState.SOL);
+                            deadEndRemoved = true;
+                            break; 
+                        } 
+                    }
+                }
+                if (deadEndRemoved) break; 
             }
-            if (maze.getState(pair.symWall().x(), pair.symWall().y()) == CellState.MUR) {
-                maze.setState(pair.symWall(), CellState.SOL);
-            }
-        }
+        } while (deadEndRemoved); 
     }
 
     /*
@@ -105,7 +148,7 @@ public class MazeGenerator {
         List<WallPair> wallPairs = new ArrayList<>();
         for (int y = 2; y < height - 2; y += 2) {
             for (int x = 2; x < width / 2; x += 2) { // Moitié gauche seulement
-                // Mur vers la droite
+                // Mur vers la droite (horizontal)
                 if (x + 2 < width) {
                     wallPairs.add(new WallPair(
                         new Point(x + 1, y), new Point(width - 2 - x, y),
@@ -113,8 +156,8 @@ public class MazeGenerator {
                         new Point(width - 1 - x, y), new Point(width - 3 - x, y)
                     ));
                 }
-                // Mur vers le bas
-                if (y + 2 < height) {
+                // Mur vers le bas (vertical)
+                if (y + 2 < height - 2) {
                     wallPairs.add(new WallPair(
                         new Point(x, y + 1), new Point(width - 1 - x, y + 1),
                         new Point(x, y), new Point(x, y + 2),
