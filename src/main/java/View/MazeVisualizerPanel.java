@@ -3,7 +3,6 @@ package View;
 import javax.swing.JPanel;
 import java.awt.*;
 
-
 public class MazeVisualizerPanel extends JPanel {
 
     private final int[][] mazeGrid;
@@ -28,11 +27,12 @@ public class MazeVisualizerPanel extends JPanel {
         int arcSize = CELL_SIZE / 2;
 
         for (int y = 0; y < mazeGrid.length; y++) {
-            for (int x = 0; x < mazeGrid[y].length; x++) { 
+            for (int x = 0; x < mazeGrid[y].length; x++) {
+                int cellValue = mazeGrid[y][x]; 
                 int cellX = x * CELL_SIZE;
                 int cellY = y * CELL_SIZE;
                 
-                switch (mazeGrid[y][x]) {
+                switch (cellValue) {
                     case 0: 
                     case 3: // Ghost House
                     case 4: // Tunnel
@@ -43,10 +43,19 @@ public class MazeVisualizerPanel extends JPanel {
                     case 1: // Mur
                     case 2: // Mur permanent
                         g2d.setColor(new Color(0,0,200)); 
-                        // Dessine des murs avec des coins arrondis (pour un rendu plus Pac-Man)
-                        g2d.fillRoundRect(cellX, cellY, CELL_SIZE, CELL_SIZE, arcSize, arcSize);
+                        int voisins_mur = 0;
+                        if (est_mur(y - 1, x)) voisins_mur++; 
+                        if (est_mur(y + 1, x)) voisins_mur++; 
+                        if (est_mur(y, x - 1)) voisins_mur++; 
+                        if (est_mur(y, x + 1)) voisins_mur++;
+                        if (voisins_mur <= 1) { 
+                            // On arrondit les murs en bout de ligne
+                            g2d.fillRoundRect(cellX, cellY, CELL_SIZE, CELL_SIZE, arcSize, arcSize);
+                        } else {
+                            // Murs standards
+                            g2d.fillRect(cellX, cellY, CELL_SIZE, CELL_SIZE);
+                        }
                         break;
-                        
                     default: 
                         g2d.setColor(Color.RED); 
                         g2d.fillRect(cellX, cellY, CELL_SIZE, CELL_SIZE);
@@ -54,5 +63,14 @@ public class MazeVisualizerPanel extends JPanel {
                 }
             }
         }
+    }
+
+    private boolean est_mur(int y, int x) {
+        // Vérification des limites
+        if (x < 0 || x >= mazeGrid[0].length || y < 0 || y >= mazeGrid.length) {
+            return false;
+        }
+        int value = mazeGrid[y][x];
+        return value == 1 || value == 2; 
     }
 }
