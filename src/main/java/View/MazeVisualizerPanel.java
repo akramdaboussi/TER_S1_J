@@ -43,17 +43,16 @@ public class MazeVisualizerPanel extends JPanel {
                     case 1: // Mur
                     case 2: // Mur permanent
                         g2d.setColor(new Color(0,0,200)); 
+                        g2d.fillRect(cellX, cellY, CELL_SIZE, CELL_SIZE);
                         int voisins_mur = 0;
                         if (est_mur(y - 1, x)) voisins_mur++; 
                         if (est_mur(y + 1, x)) voisins_mur++; 
                         if (est_mur(y, x - 1)) voisins_mur++; 
                         if (est_mur(y, x + 1)) voisins_mur++;
-                        if (voisins_mur <= 1) { 
-                            // On arrondit les murs en bout de ligne
-                            g2d.fillRoundRect(cellX, cellY, CELL_SIZE, CELL_SIZE, arcSize, arcSize);
+                        if (voisins_mur > 1) { 
                         } else {
-                            // Murs standards
-                            g2d.fillRect(cellX, cellY, CELL_SIZE, CELL_SIZE);
+                            g2d.setColor(new Color(0,0,200)); 
+                            g2d.fillRoundRect(cellX, cellY, CELL_SIZE, CELL_SIZE, arcSize, arcSize);
                         }
                         break;
                     default: 
