@@ -19,7 +19,6 @@ public class ApiIntegrationTest {
     private static final int PORT = 5000;
     private static final int WIDTH = 28;
     private static final int HEIGHT = 31;
-    private static final double IMPERFECTION_PERCENTAGE = 0.2;
     private static final String API_ENDPOINT = "/api/labyrinthe"; 
     private static final String BASE_URL = "http://localhost:" + PORT;
 
@@ -39,8 +38,7 @@ public class ApiIntegrationTest {
             // Lecture et parsing des paramètres de la requête
             int width = getQueryInt(request.queryParams("width"), WIDTH);
             int height = getQueryInt(request.queryParams("height"), HEIGHT);
-            long seed = getQueryLong(request.queryParams("seed"), System.currentTimeMillis());
-            double imperfection = getQueryDouble(request.queryParams("imperfection"), IMPERFECTION_PERCENTAGE);
+            long seed = System.currentTimeMillis();
 
             // Validation de base pour la symétrie
             if (width % 2 != 0) {
@@ -54,7 +52,7 @@ public class ApiIntegrationTest {
             maze.applyTemplate();
             
             MazeGenerator generator = new MazeGenerator();
-            generator.generate(maze, random, imperfection); 
+            generator.generate(maze, random); 
 
             response.type("application/json");
             return maze.toJsonString(); 
@@ -74,7 +72,7 @@ public class ApiIntegrationTest {
 
     @Test
     void testSuccessfulGenerationReturns200AndJson() throws Exception {
-        URL url = createUrl(BASE_URL + API_ENDPOINT + "?width=28&height=30&imperfection=0.1");
+        URL url = createUrl(BASE_URL + API_ENDPOINT + "?width=28&height=30");
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod("GET");
         
@@ -126,22 +124,6 @@ public class ApiIntegrationTest {
     private static int getQueryInt(String param, int defaultValue) {
         try {
             return param != null ? Integer.parseInt(param) : defaultValue;
-        } catch (NumberFormatException e) {
-            return defaultValue;
-        }
-    }
-
-    private static long getQueryLong(String param, long defaultValue) {
-        try {
-            return param != null ? Long.parseLong(param) : defaultValue;
-        } catch (NumberFormatException e) {
-            return defaultValue;
-        }
-    }
-
-    private static double getQueryDouble(String param, double defaultValue) {
-        try {
-            return param != null ? Double.parseDouble(param) : defaultValue;
         } catch (NumberFormatException e) {
             return defaultValue;
         }

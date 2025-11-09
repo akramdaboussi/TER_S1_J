@@ -53,7 +53,7 @@ public class MazeTest {
         maze.applyTemplate();
         
         MazeGenerator generator = new MazeGenerator();
-        generator.generate(maze, new Random(seed), 0.0); // 0.0 imperfection pour un labyrinthe simple
+        generator.generate(maze, new Random(seed)); 
 
         int width = maze.getWidth();
         
