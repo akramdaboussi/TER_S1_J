@@ -1,5 +1,6 @@
 import java.io.*;
 import java.net.*;
+import java.util.List;
 import java.util.stream.Collectors;
 import javax.swing.*;
 
@@ -88,11 +89,22 @@ public class LocalClient {
      */
     private static void displayMaze(MazeData data) {
         System.out.println("Lancement de la visualisation graphique (W=" + data.width() + ", H=" + data.height() + ")");
+        List<List<Integer>> gridList = data.grid();
+        int height = gridList.size();
+        int width = gridList.get(0).size();
+        int[][] gridArray = new int[height][width];
+
+        for (int y = 0; y < height; y++) {
+            List<Integer> row = gridList.get(y);
+            for (int x = 0; x < width; x++) {
+                gridArray[y][x] = row.get(x);
+            }
+        }
         SwingUtilities.invokeLater(() -> {
             JFrame frame = new JFrame("Labyrinthe récupéré de Render(ID: " + data.ident() + ")");
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             // Utilise la grille int[][] récupérée via JSON pour le dessin
-            frame.add(new MazeVisualizerPanel(data.grid())); 
+            frame.add(new MazeVisualizerPanel(gridArray)); 
             frame.pack();
             frame.setLocationRelativeTo(null);
             frame.setVisible(true);

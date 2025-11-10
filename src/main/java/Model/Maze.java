@@ -1,6 +1,10 @@
 package Model;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
+
 import com.google.gson.Gson;
 
 /*
@@ -118,8 +122,12 @@ public class Maze {
                 }
             }
         }
+
+        List<List<Integer>> simpleGridList = Arrays.stream(simpleGrid)
+            .map(row -> Arrays.stream(row).boxed().collect(Collectors.toList()))
+            .collect(Collectors.toList());
         // Crée l'objet de transfert JSON avec l'ID
-        return new MazeData(this.ident, this.width, this.height, simpleGrid);
+        return new MazeData(this.ident, this.width, this.height, simpleGridList);
     }
 
     public String toJsonString(){
