@@ -1,4 +1,8 @@
 import java.util.Random;
+
+import com.google.gson.Gson;
+
+import Database.MongoDBService;
 import Generator.*;
 import Model.*;
 import static spark.Spark.*;
@@ -13,17 +17,26 @@ public class Main {
     private static final int WIDTH = 28;
     private static final int HEIGHT = 31;
     private static final String API_ENDPOINT = "/api/labyrinthe"; 
+    private static final String API_RATING_ENDPOINT = "/api/labyrinthe/note";
 
+    // Instance MongoDB
+    private static MongoDBService dbService;
+
+    private record RatingRequest(String ident, int note) {}
 
     public static void main(String[] args) {
-        // 1. Configuration du Port pour le déploiement Cloud (Render)
+        // Configuration du Port pour le déploiement Cloud (Render)
         // Lit la variable d'environnement PORT (fournie par Render) ou utilise 4567 par défaut
         String portStr = System.getenv("PORT");
         int port = portStr != null ? Integer.parseInt(portStr) : 4567;
         port(port);
+
+        // Initialisation du service MongoDB
+        dbService = new MongoDBService();
         
         System.out.println("Démarrage du Maze Generator sur le port: " + port);
-        // Définition de l'API: GET /api/labyrinthe
+
+        // Définition de l'API: GET /api/labyrinthe (Génération et stockage)
         get( API_ENDPOINT, (request, response) -> {
             // Lecture et parsing des paramètres de la requête
             // Largeur (width)
@@ -51,10 +64,51 @@ public class Main {
             MazeGenerator generator = new MazeGenerator();
             generator.generate(maze, random);
 
+            MazeData dataForJson = maze.getMazeData(); // Contient maintenant l'ident
+            
+            // Stocke le labyrinthe dans MongoDB
+            if (dbService.est_connecté()) {
+                dbService.saveMaze(dataForJson);
+            } 
+
             // Configuration et Retour de la Réponse JSON
             response.type("application/json");
             // Utilise la méthode toJsonString() pour créer le JSON
             return maze.toJsonString(); 
+        });
+
+        // Endpoint POST pour la notation des labyrinthes
+        post(API_RATING_ENDPOINT, (request, response) -> {
+            response.type("application/json");
+            if (!dbService.est_connecté()) {
+                response.status(503); 
+                return "{\"error\": \"Le service de base de données n'est pas disponible.\"}";
+            }
+
+            try {
+                // Parsing du JSON entrant (ident et note)
+                Gson gson = new Gson();
+                RatingRequest rating = gson.fromJson(request.body(), RatingRequest.class); 
+                
+                if (rating.ident() == null || rating.note() < 0 || rating.note() > 5) {
+                    response.status(400);
+                    return "{\"error\": \"Identifiant ou note (0-5) invalide.\"}";
+                }
+
+                long updatedCount = dbService.updateRating(rating.ident(), rating.note());
+                
+                if (updatedCount > 0) {
+                    response.status(200);
+                    return "{\"message\": \"Notation enregistrée avec succès.\", \"ident\": \"" + rating.ident() + "\", \"note\": " + rating.note() + "}";
+                } else {
+                    response.status(404);
+                    return "{\"error\": \"Labyrinthe non trouvé avec l'identifiant: " + rating.ident() + "\"}";
+                }
+
+            } catch (Exception e) {
+                response.status(500);
+                return "{\"error\": \"Erreur interne du serveur lors de la notation.\"}";
+            }
         });
 
         // Route d'accueil simple
