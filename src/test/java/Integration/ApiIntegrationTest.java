@@ -84,6 +84,7 @@ public class ApiIntegrationTest {
         try (BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
             String jsonResponse = in.readLine();
             assertTrue(jsonResponse.contains("\"width\":28"), "Le JSON doit contenir la largeur demandée (28).");
+            assertTrue(jsonResponse.contains("\"ident\":"), "Le JSON doit contenir l'identifiant unique du labyrinthe (ident).");
         }
     }
 
