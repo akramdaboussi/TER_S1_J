@@ -1,5 +1,6 @@
 package Model;
 
+import java.util.UUID;
 import com.google.gson.Gson;
 
 /*
@@ -11,6 +12,7 @@ public class Maze {
     private final int width;
     private final int height;
     private final CellState[][] grid;
+    private final String ident;
 
     /*
      * Construit un labyrinthe vide de dimensions données, rempli de murs.
@@ -25,6 +27,7 @@ public class Maze {
         this.width = width;
         this.height = height;
         this.grid = new CellState[height][width];
+        this.ident = UUID.randomUUID().toString();
         // Initialise toute la grille avec des murs
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
@@ -100,7 +103,7 @@ public class Maze {
     public CellState getState(int x, int y) { return grid[y][x]; }
     public void setState(Point p, CellState state) { grid[p.y()][p.x()] = state; }
 
-    public String toJsonString() {
+    public MazeData getMazeData() {
         // Traduire la grille complexe (CellState[][]) en une grille simple (int[][])
         int[][] simpleGrid = new int[height][width];
         for (int y = 0; y < height; y++) {
@@ -115,11 +118,12 @@ public class Maze {
                 }
             }
         }
-        // Créer un objet qui représente la structure finale du JSON
-        MazeData dataForJson = new MazeData(this.width, this.height, simpleGrid);
+        // Crée l'objet de transfert JSON avec l'ID
+        return new MazeData(this.ident, this.width, this.height, simpleGrid);
+    }
 
-        // Utiliser la bibliothèque Gson pour créer la chaîne de caractères
+    public String toJsonString(){
         Gson gson = new Gson();
-        return gson.toJson(dataForJson);
+        return gson.toJson(getMazeData());
     }
 }
