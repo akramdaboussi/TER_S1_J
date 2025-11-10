@@ -103,7 +103,7 @@ public class LocalClient {
         SwingUtilities.invokeLater(() -> {
             JFrame frame = new JFrame("Labyrinthe récupéré de Render(ID: " + data.ident() + ")");
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            // Utilise la grille int[][] récupérée via JSON pour le dessin
+            
             frame.add(new MazeVisualizerPanel(gridArray)); 
             frame.pack();
             frame.setLocationRelativeTo(null);
