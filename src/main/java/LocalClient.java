@@ -1,6 +1,6 @@
 import java.io.*;
 import java.net.*;
-
+import java.util.stream.Collectors;
 import javax.swing.*;
 
 import com.google.gson.Gson;
@@ -14,13 +14,14 @@ import View.MazeVisualizerPanel;
 public class LocalClient {
 
     private static final String API_URL = "https://pacmaz-s1-j.onrender.com/api/labyrinthe";
-
+    private static final String API_RATING_URL = "https://pacmaz-s1-j.onrender.com/api/labyrinthe/note"; 
     public static void main(String[] args) {
         String mazeJson = fetchMazeData(API_URL);
         if (mazeJson != null) {
             MazeData data = parseMazeData(mazeJson);
             if (data != null) {
                 displayMaze(data);
+                promptAndSendRating(data.ident());
             }
         }
     }
@@ -88,7 +89,7 @@ public class LocalClient {
     private static void displayMaze(MazeData data) {
         System.out.println("Lancement de la visualisation graphique (W=" + data.width() + ", H=" + data.height() + ")");
         SwingUtilities.invokeLater(() -> {
-            JFrame frame = new JFrame("Labyrinthe récupéré de Render");
+            JFrame frame = new JFrame("Labyrinthe récupéré de Render(ID: " + data.ident() + ")");
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             // Utilise la grille int[][] récupérée via JSON pour le dessin
             frame.add(new MazeVisualizerPanel(data.grid())); 
@@ -97,4 +98,80 @@ public class LocalClient {
             frame.setVisible(true);
         });
     }
+
+    /**
+     * Demande à l'utilisateur une note (0-5) et envoie la notation à l'API Render via POST
+     */
+    private static void promptAndSendRating(String ident) {
+        String input = JOptionPane.showInputDialog(
+            null, 
+            "Entrez votre note pour le labyrinthe (0: bad, 5: good):", 
+            "Évaluation du Labyrinthe", 
+            JOptionPane.QUESTION_MESSAGE
+        );
+        if (input != null && !input.trim().isEmpty()) {
+            try {
+                int note = Integer.parseInt(input.trim());
+                if (note >= 0 && note <= 5) {
+                    sendRating(ident, note);
+                } else {
+                    JOptionPane.showMessageDialog(null, "La note doit être entre 0 et 5.", "Erreur de saisie", JOptionPane.ERROR_MESSAGE);
+                }
+            } catch (NumberFormatException e) {
+                JOptionPane.showMessageDialog(null, "Veuillez entrer un nombre valide.", "Erreur de format", JOptionPane.ERROR_MESSAGE);
+            }
+        } else if (input != null) {
+            System.out.println("Notation annulée par l'utilisateur.");
+        }
+    }
+
+    /**
+     * Envoie la notation à l'API Render via une requête HTTP POST
+     */
+    private static void sendRating(String ident, int note) {
+        System.out.println("Envoi de la note " + note + " pour l'ID " + ident + "...");
+        try {
+            // Utilisation de URI pour éviter l'avertissement de dépréciation
+            URL url = new URI(API_RATING_URL).toURL();
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            
+            // Configuration de la connexion POST
+            connection.setRequestMethod("POST");
+            connection.setRequestProperty("Content-Type", "application/json"); // Indique que nous envoyons du JSON
+            connection.setDoOutput(true); // Permet d'écrire dans le corps de la requête
+            
+            // Corps de la requête JSON
+            String jsonInputString = String.format("{\"ident\": \"%s\", \"note\": %d}", ident, note);
+            
+            // Envoi du JSON
+            try(OutputStream os = connection.getOutputStream()) {
+                byte[] input = jsonInputString.getBytes("utf-8");
+                os.write(input, 0, input.length);			
+            }
+
+            // Lecture de la réponse du serveur
+            int responseCode = connection.getResponseCode();
+            System.out.println("Réponse du serveur (Notation) : " + responseCode);
+
+            InputStream inputStream = (responseCode >= 200 && responseCode <= 299) ? connection.getInputStream() : connection.getErrorStream();
+            
+            try(BufferedReader br = new BufferedReader(new InputStreamReader(inputStream, "utf-8"))) {
+                // Lit toute la réponse
+                String responseText = br.lines().collect(Collectors.joining("\n"));
+                System.out.println("Message du serveur : " + responseText);
+
+                if (responseCode == 200) {
+                     JOptionPane.showMessageDialog(null, "Notation enregistrée (Note: " + note + ")!", "Succès", JOptionPane.INFORMATION_MESSAGE);
+                } else {
+                     JOptionPane.showMessageDialog(null, "Erreur de notation (" + responseCode + "): " + responseText, "Erreur", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+
+        } catch (URISyntaxException e) {
+            System.err.println("Erreur de syntaxe d'URL : " + e.getMessage());
+        } catch (IOException e) {
+            System.err.println("Erreur réseau lors de l'envoi de la note : " + e.getMessage());
+        }
+    }
+
 }
