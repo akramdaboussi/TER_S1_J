@@ -3,36 +3,55 @@ Projet TER Groupe J
 Bensallah Younes
 Daboussi Akram
 
-### Installation (Pour Ubuntu / WSL)
+## Fonctionnalités Clés et Architecture
+Ce projet implémente un générateur de labyrinthes de type Pac-Man en Java. Ce générateur est basé sur l'algorithme de Kruskal modifié pour garantir une symétrie horizontale parfaite et éviter les culs-de sac.
 
-# Mettre à jour la liste des paquets
+L'application est architecturée comme suit :
+* **Back-end et Interface HTTP:** Un service basé sur **Spark Java** qui fournit une interface HTTP afin d'obtenir et évaluer les labyrinthes générés.
+
+* **Base de Données:** Utilisation de **MongoDB Atlas** pour stocker les labyrinthes générés et leur notation.
+
+* **Client:** Une application **LocalClient** (basée sur Swing) permet de récupérer le labyrinthe généré via l'API, d'afficher sa visualisation graphique et de lui attribuer une note entre 0 et 5.
+
+* **CI/CD:** Un workflow **GitHub Actions** gère les tests unitaires et la construction (CI). L'application est conteneurisée via **Docker** pour le déploiement (CD).
+
+### Dépendances
+Les principales dépendances du projet, gérées par Maven, sont:
+* **Spark Core** (Serveur HTTP)
+* **Gson** (Gestion du format JSON)
+* **MongoDB Driver Sync** (Connexion à la base de données Atlas)
+* **JUnit Jupiter** (Tests)
+
+
+## Commandes d'installation (Pour Ubuntu / WSL)
+
+### Mettre à jour la liste des paquets
 sudo apt update
 
-# Installer Java 21
+### Installer Java 21
 sudo apt install -y openjdk-21-jdk
 
-# Configurer les variables d'environnement (pour la session actuelle)
+### Configurer les variables d'environnement (pour la session actuelle)
 export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
 export PATH=$JAVA_HOME/bin:$PATH
 
-# Vérifier que tout est bien configuré
+### Vérifier que tout est bien configuré
 mvn -v
 
-# Pour une compilation rapide (sans tests)
-mvn -q -DskipTests=true compile
+## Compilation et Tests
 
-# Pour nettoyer, compiler et juste créer le fichier .jar
-mvn clean package
+### Pour nettoyer, compiler et créer le fichier .jar (sans lancer les tests)
+mvn clean package -DskipTests=true
 
-# Executer le JAR
-Lance le service sur le port 4567 (par défaut) ou le port spécifié par la variable PORT.
-java -jar target/pac-man-generator-1.0-SNAPSHOT-jar-with-dependencies.jar
+### Execution de tous les tests
+mvn clean test
 
-# Pour lancer sur un port spécifique (ex: 8000) en local :
-PORT=8000 java -jar target/pac-man-generator-1.0-SNAPSHOT-jar-with-dependencies.jar
+## Execution du Script de Test de l'API déployée
+### Rendre le script exécutable 
+chmod +x tests/api_tests.sh
 
-# Tester l'API après le lancement du serveur
-Ouvrir dans le navigateur : http://localhost:<votre_port>/api/labyrinthe
+### Lancement du script de tests
+./tests/api_tests.sh
 
-Exemple avec des paramètres :
-http://localhost:8080/api/labyrinthe?width=30&height=30&imperfection=0.1
+## Lancement du client de visualisation 
+mvn exec:java -Dexec.mainClass="LocalClient" 
