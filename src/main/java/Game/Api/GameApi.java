@@ -4,15 +4,31 @@ import static spark.Spark.*;
 import com.google.gson.Gson;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.Map;
 
 import Generator.MazeGenerator;
 import Model.Maze;
+import Model.MazeData;
 import Game.*;
 
 public final class GameApi {
   private static final Map<String,GameState> GAMES = new ConcurrentHashMap<>();
   private static final Gson GSON = new Gson();
+
+  // DTO pour la réponse de l'état du jeu
+  public record GameStateResponse(
+    String gameId,
+    int tick,
+    int score,
+    int lives,
+    boolean levelCleared,
+    boolean isFrightened,
+    Map<String, Integer> pac,       
+    Map<String, Integer> blinky,    
+    int pelletsRemaining,
+    MazeData mazeData,             
+    boolean[][] smallPellets,       
+    boolean[][] powerPellets        
+  ) {}
 
   public static void mount(){
     post("/api/game/start", (req,res)->{
@@ -23,57 +39,69 @@ public final class GameApi {
 
       PelletField pf = PelletPlacer.place(maze);
       GameConfig cfg = new GameConfig();
-      // TODO: place mieux les spawns selon ton maze
-      EntityPos pac = new EntityPos(1,1,1,0);
-      EntityPos blinky = new EntityPos(10,10,0,0);
+
+      EntityPos pac = cfg.pacSpawn;
+      EntityPos blinky = cfg.blinkySpawn;
 
       GameState gs = new GameState(maze, pf, cfg, pac, blinky);
       String id = UUID.randomUUID().toString();
       GAMES.put(id, gs);
 
       res.type("application/json");
-      return GSON.toJson(Map.of("gameId", id));
+      return GSON.toJson(stateDto(gs, id));
     });
 
+    // --- Obtenir l'état de la partie ---
     get("/api/game/:id/state", (req,res)->{
-      GameState gs = GAMES.get(req.params(":id"));
-      if (gs==null){ res.status(404); return "game not found"; }
+      String gameId = req.params(":id");
+      GameState gs = GAMES.get(gameId);
+      if (gs==null){ 
+        res.status(404); 
+        return "game not found"; 
+      }
       res.type("application/json");
-      return GSON.toJson(stateDto(gs));
+      return GSON.toJson(stateDto(gs, gameId));
     });
 
+    // --- Effectuer un pas de jeu ---
     post("/api/game/:id/step", (req,res)->{
-      GameState gs = GAMES.get(req.params(":id"));
-      if (gs==null){ res.status(404); return "game not found"; }
-      Map<String,Object> body = null;
-      try {
-          @SuppressWarnings("unchecked")
-          Map<String,Object> tmp = (Map<String,Object>) GSON.fromJson(req.body(), Map.class);
-          body = tmp;
-      } catch (Exception ignore) {}
-
-      String actStr = "NONE";
-      if (body != null) {
-          Object v = body.getOrDefault("action", "NONE");
-          actStr = String.valueOf(v);
+      String gameId = req.params(":id");
+      GameState gs = GAMES.get(gameId);
+      if (gs==null){ 
+        res.status(404); 
+        return "game not found"; 
       }
-      Action a = Action.valueOf(actStr);
-      GameLogic.step(gs, a);
+      Action action;
+      try {
+        String actionStr = GSON.fromJson(req.body(), String.class);
+        action = Action.valueOf(actionStr.toUpperCase());
+      } catch (Exception e) {
+        action = Action.NONE; // Utilise NONE en cas d'échec de parsing
+      }
+      GameLogic.step(gs, action);
 
       res.type("application/json");
-      return GSON.toJson(stateDto(gs));
+      return GSON.toJson(stateDto(gs, gameId));
     });
   }
 
-  private static Map<String,Object> stateDto(GameState s){
-    return Map.of(
-      "tick", s.tick,
-      "score", s.score,
-      "lives", s.lives,
-      "levelCleared", s.levelCleared,
-      "pac", Map.of("x",s.pac.x,"y",s.pac.y,"dx",s.pac.dx,"dy",s.pac.dy),
-      "blinky", Map.of("x",s.blinky.x,"y",s.blinky.y,"dx",s.blinky.dx,"dy",s.blinky.dy),
-      "pelletsRemaining", s.pellets.remaining()
+  /**
+   * Construit le DTO de réponse à partir du GameState.
+   */
+  private static GameStateResponse stateDto(GameState s, String gameId){
+    return new GameStateResponse(
+      gameId,
+      s.tick(),
+      s.score(),
+      s.lives(),
+      s.levelCleared,
+      s.isFrightened(),
+      Map.of("x",s.pac.x(),"y",s.pac.y(),"dx",s.pac.dx(),"dy",s.pac.dy()),
+      Map.of("x",s.blinky.x(),"y",s.blinky.y(),"dx",s.blinky.dx(),"dy",s.blinky.dy()),
+      s.pellets.remaining(),
+      s.maze.getMazeData(), 
+      s.pellets.getSmall(),
+      s.pellets.getPower()
     );
   }
 }

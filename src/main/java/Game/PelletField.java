@@ -13,6 +13,7 @@ public final class PelletField {
     if(small[y][x]){ small[y][x]=false; return true; }
     return false;
   }
+
   /** @return true si une power pellet a été mangée ici */
   public boolean eatPower(int x,int y){
     if(power[y][x]){ power[y][x]=false; return true; }
@@ -26,4 +27,7 @@ public final class PelletField {
         if (small[y][x] || power[y][x]) r++;
     return r;
   }
+
+  public boolean[][] getSmall(){ return small; }
+  public boolean[][] getPower(){ return power; }
 }
