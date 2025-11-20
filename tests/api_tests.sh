@@ -18,15 +18,15 @@ echo "API TEST: ${RENDER_URL}${API_PATH}"
 echo "==================================================================="
 
 echo ""
-echo "--- TEST DE SUCCÈS : Paramètres par défaut (28x31, Imperfection 20%) ---"
+echo "--- TEST DE SUCCÈS : Paramètres par défaut (28x31) ---"
 echo "Requête : GET ${RENDER_URL}${API_PATH}"
 curl -s -X GET "${RENDER_URL}${API_PATH}" | $JQ_CMD
 echo ""
 
 
 echo ""
-echo "--- TEST DE SUCCÈS : Demande personnalisée (30x30, Imperfection 10%) ---"
-QUERY="?width=30&height=30&imperfection=0.1"
+echo "--- TEST DE SUCCÈS : Demande personnalisée (30x30) ---"
+QUERY="?width=30&height=30"
 echo "Requête : GET ${RENDER_URL}${API_PATH}${QUERY}"
 curl -s -X GET "${RENDER_URL}${API_PATH}${QUERY}" | $JQ_CMD
 echo ""
