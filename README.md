@@ -55,3 +55,6 @@ chmod +x tests/api_tests.sh
 
 ## Lancement du client de visualisation 
 mvn exec:java -Dexec.mainClass="LocalClient" 
+
+## Lancement du jeu en local (sera modifié par la suite)
+mvn exec:java -Dexec.mainClass="Game.GameLauncher"

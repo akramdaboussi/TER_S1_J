@@ -78,7 +78,7 @@ public final class GameApi {
       } catch (Exception e) {
         action = Action.NONE; // Utilise NONE en cas d'échec de parsing
       }
-      GameLogic.step(gs, action);
+      GameLogic.step(gs);
 
       res.type("application/json");
       return GSON.toJson(stateDto(gs, gameId));
