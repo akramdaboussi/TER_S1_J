@@ -66,6 +66,7 @@ public class Maze {
         grid[ghYStart][width / 2 - 1] = CellState.SOL; 
         grid[ghYStart][width / 2] = CellState.SOL;
 
+        /*
         for (int yClear = ghYStart - 1; yClear <= ghYStart + 5; yClear++) {
             for (int xClear = ghXStart - 1; xClear <= ghXStart + 8; xClear++) {
                 // On s'assure que l'on n'est pas sur la bordure permanente du maze
@@ -79,6 +80,7 @@ public class Maze {
                 }
             }
         }
+        */
 
         // Tunnels sur les côtés
         int tunnelY = height / 2;
