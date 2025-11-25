@@ -18,6 +18,7 @@ public final class GameApi {
     post("/api/game/start", (req,res)->{
       // génère un maze 
       Maze maze = new Maze(28,31);
+      maze.applyTemplate();
       new MazeGenerator().generate(maze, new Random());
 
       PelletField pf = PelletPlacer.place(maze);

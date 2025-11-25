@@ -11,8 +11,12 @@ public final class PelletPlacer {
     // petites pellets sur les SOL
     for(int y=0;y<h;y++)
       for(int x=0;x<w;x++)
-        if (m.getState(x,y)==CellState.SOL) pf.small[y][x]=true;
-
+        if (m.getState(x,y)==CellState.SOL){
+          pf.small[y][x]=true;
+        } else {
+          pf.small[y][x]=false;
+        }
+    
 
     // 4 power pellets avec placement conditionnel, on modifiera plus tard pour un placement plus intelligent
     markPowerIfWalkable(pf,m,1,3);

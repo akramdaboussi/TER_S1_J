@@ -61,10 +61,22 @@ public final class GameLogic {
             e.setDy(turn[1]);
             s.setCurrentDir(desired);
         }
-
         //deplacement direction actuelle
         int nx = e.x() + e.dx();
         int ny = e.y() + e.dy();
+
+        // Ajout du wrap-around
+        if (nx < 0 || nx >= m.getWidth()) { 
+            if (m.getState(e.x(), e.y()) == CellState.TUNNEL) {
+                if (nx < 0) { // Sortie gauche (x=-1), va vers la droite
+                    e.setX(m.getWidth() - 1);
+                } else { // Sortie droite (x=width), va vers la gauche
+                    e.setX(0);
+                }
+                e.setY(ny); 
+                return; 
+            }
+        }
 
         if (isWalk(m, nx, ny)) {
             e.setX(nx);
@@ -155,6 +167,9 @@ public final class GameLogic {
     }
 
     private static boolean isWalk(Maze m, int x, int y) {
+        if (x < 0 || x >= m.getWidth() || y < 0 || y >= m.getHeight()) {
+            return false;
+        }
         CellState s = m.getState(x, y);
         return s == CellState.SOL || s == CellState.TUNNEL;
     }
