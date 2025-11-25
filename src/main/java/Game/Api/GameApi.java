@@ -7,35 +7,18 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import Generator.MazeGenerator;
 import Model.Maze;
-import Model.MazeData;
 import Game.*;
+import Game.GameStateResponse;
 
 public final class GameApi {
   private static final Map<String,GameState> GAMES = new ConcurrentHashMap<>();
   private static final Gson GSON = new Gson();
-
-  // DTO pour la réponse de l'état du jeu
-  public record GameStateResponse(
-    String gameId,
-    int tick,
-    int score,
-    int lives,
-    boolean levelCleared,
-    boolean isFrightened,
-    Map<String, Integer> pac,       
-    Map<String, Integer> blinky,    
-    int pelletsRemaining,
-    MazeData mazeData,             
-    boolean[][] smallPellets,       
-    boolean[][] powerPellets        
-  ) {}
 
   public static void mount(){
     post("/api/game/start", (req,res)->{
       // génère un maze 
       Maze maze = new Maze(28,31);
       new MazeGenerator().generate(maze, new Random());
-
 
       PelletField pf = PelletPlacer.place(maze);
       GameConfig cfg = new GameConfig();
@@ -78,6 +61,7 @@ public final class GameApi {
       } catch (Exception e) {
         action = Action.NONE; // Utilise NONE en cas d'échec de parsing
       }
+      gs.setDesiredDir(action);
       GameLogic.step(gs);
 
       res.type("application/json");
