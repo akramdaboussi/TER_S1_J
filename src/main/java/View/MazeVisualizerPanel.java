@@ -3,17 +3,18 @@ package View;
 import javax.swing.JPanel;
 import java.awt.*;
 import java.awt.geom.Line2D;
-
-import Game.GameState;
-import Game.EntityPos;
-import Game.PelletField;
+import java.util.Map;
 
 public class MazeVisualizerPanel extends JPanel {
 
     private final int[][] mazeGrid;
     private static final int CELL_SIZE = 20; // Taille d'une case en pixels
 
-    private GameState gameState; // État courant du jeu
+    private Map<String, Integer> pacPosData;
+    private Map<String, Integer> blinkyPosData;
+    private boolean[][] smallPelletsData;
+    private boolean[][] powerPelletsData;
+    private boolean isFrightened = false;
 
     public MazeVisualizerPanel(int[][] grid) {
         this.mazeGrid = grid;
@@ -25,11 +26,14 @@ public class MazeVisualizerPanel extends JPanel {
         requestFocusInWindow();
     }
 
-    
-
-    // Permet au panneau de connaître l'état du jeu
-    public void setGameState(GameState state) {
-        this.gameState = state;
+    // Méthode pour mettre à jour l'état du jeu à partir des données du Cloud
+    public void setCloudGameData(Map<String, Integer> pac, Map<String, Integer> blinky, 
+                                 boolean[][] smallPellets, boolean[][] powerPellets, boolean frightened) {
+        this.pacPosData = pac;
+        this.blinkyPosData = blinky;
+        this.smallPelletsData = smallPellets;
+        this.powerPelletsData = powerPellets;
+        this.isFrightened = frightened;
         repaint();
     }
 
@@ -84,7 +88,7 @@ public class MazeVisualizerPanel extends JPanel {
         }
 
         // elements du jeu
-        if (gameState != null) {
+        if (pacPosData != null) {
             drawPellets(g2d);
             drawPacman(g2d);
             drawGhosts(g2d);
@@ -96,14 +100,13 @@ public class MazeVisualizerPanel extends JPanel {
             return false;
         }
         int v = mazeGrid[y][x];
-        return v == 1 || v == 2; // 1 = mur, 2 = mur spécial
+        return v == 1 || v == 2; // 1 = mur, 2 = mur permanent
     }
 
-    // pacman
+    // pacman 
     private void drawPacman(Graphics2D g) {
-        EntityPos p = gameState.pac;
-        int px = p.x() * CELL_SIZE;
-        int py = p.y() * CELL_SIZE;
+        int px = pacPosData.get("x") * CELL_SIZE;
+        int py = pacPosData.get("y") * CELL_SIZE;
 
         g.setColor(Color.YELLOW);
         g.fillOval(px, py, CELL_SIZE, CELL_SIZE);
@@ -111,10 +114,8 @@ public class MazeVisualizerPanel extends JPanel {
 
     // pellets
     private void drawPellets(Graphics2D g) {
-        PelletField pellets = gameState.pellets();
-
-        boolean[][] small = pellets.getSmall();
-        boolean[][] power = pellets.getPower();
+        boolean[][] small = smallPelletsData;
+        boolean[][] power = powerPelletsData;
 
         g.setColor(Color.WHITE);
         int r = CELL_SIZE / 4;
@@ -122,31 +123,30 @@ public class MazeVisualizerPanel extends JPanel {
         for (int y = 0; y < small.length; y++) {
             for (int x = 0; x < small[0].length; x++) {
 
-                // Small pellet
-                if (small[y][x]) {
-                    int px = x * CELL_SIZE + CELL_SIZE/2 - r/2;
-                    int py = y * CELL_SIZE + CELL_SIZE/2 - r/2;
-                    g.fillOval(px, py, r, r);
-                }
-
                 // Power pellet (plus grosse)
                 if (power[y][x]) {
                     int px = x * CELL_SIZE + CELL_SIZE/2 - r;
                     int py = y * CELL_SIZE + CELL_SIZE/2 - r;
                     g.fillOval(px, py, r * 2, r * 2);
                 }
+
+                // Small pellet
+                if (small[y][x]) {
+                    int px = x * CELL_SIZE + CELL_SIZE/2 - r/2;
+                    int py = y * CELL_SIZE + CELL_SIZE/2 - r/2;
+                    g.fillOval(px, py, r, r);
+                }
             }
         }
     }
 
-    //ghosts (un seul atm)
+    //ghosts 
     private void drawGhosts(Graphics2D g) {
-        EntityPos ghost = gameState.blinky;
+        int gx = blinkyPosData.get("x") * CELL_SIZE;
+        int gy = blinkyPosData.get("y") * CELL_SIZE;
 
-        int gx = ghost.x() * CELL_SIZE;
-        int gy = ghost.y() * CELL_SIZE;
-
-        g.setColor(Color.RED);
+        // Change la couleur si Pac-Man est frightened
+        g.setColor(isFrightened ? Color.BLUE : Color.RED);
         g.fillOval(gx, gy, CELL_SIZE, CELL_SIZE);
     }
 }
