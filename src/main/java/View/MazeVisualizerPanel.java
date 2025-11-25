@@ -123,18 +123,20 @@ public class MazeVisualizerPanel extends JPanel {
         for (int y = 0; y < small.length; y++) {
             for (int x = 0; x < small[0].length; x++) {
 
-                // Power pellet (plus grosse)
-                if (power[y][x]) {
-                    int px = x * CELL_SIZE + CELL_SIZE/2 - r;
-                    int py = y * CELL_SIZE + CELL_SIZE/2 - r;
-                    g.fillOval(px, py, r * 2, r * 2);
-                }
-
                 // Small pellet
                 if (small[y][x]) {
                     int px = x * CELL_SIZE + CELL_SIZE/2 - r/2;
                     int py = y * CELL_SIZE + CELL_SIZE/2 - r/2;
                     g.fillOval(px, py, r, r);
+                }
+
+                // Power pellet (plus grosse)
+                if (power[y][x]) {
+                    int power_d = r * 4;
+                    int power_offset = r * 2;
+                    int px = x * CELL_SIZE + CELL_SIZE/2 - power_offset;
+                    int py = y * CELL_SIZE + CELL_SIZE/2 - power_offset;
+                    g.fillOval(px, py, power_d, power_d);
                 }
             }
         }
