@@ -175,4 +175,15 @@ public final class GameLogic {
         CellState s = m.getState(x, y);
         return s == CellState.SOL || s == CellState.TUNNEL;
     }
+
+    public static EntityPos findSpawn(Maze maze) {
+        for (int y = 0; y < maze.getHeight(); y++) {
+            for (int x = 0; x < maze.getWidth(); x++) {
+                if (maze.getState(x, y) == CellState.SOL) {
+                    return new EntityPos(x, y, 1, 0); 
+                }
+            }
+        }
+        throw new IllegalStateException("Aucun spawn SOL trouvé dans le labyrinthe.");
+    }
 }
