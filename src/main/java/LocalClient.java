@@ -1,93 +1,46 @@
 import java.io.*;
 import java.net.*;
 import java.util.List;
-import java.util.stream.Collectors;
 import javax.swing.*;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 
-import com.google.gson.Gson;
 import Model.MazeData; 
 import View.MazeVisualizerPanel; 
+import Game.Action;
+import Game.Api.GameClient;
+import Game.GameStateResponse;
 
 /**
- * Client local qui se connecte à l'API déployée sur Render pour récupérer le JSON
- * et afficher le labyrinthe graphiquement 
+ * Client Cloud pour Pac-Man
+ * Gère le flux d'exécution, l'interface utilisateur et les événements clavier
+ * Délègue toutes les opérations réseau à GameClient
  */
 public class LocalClient {
 
-    private static final String API_URL = "https://pacmaz-s1-j.onrender.com/api/labyrinthe";
-    private static final String API_RATING_URL = "https://pacmaz-s1-j.onrender.com/api/labyrinthe/note"; 
+    private static String currentGameId = null;
+    private static Action desiredAction = Action.NONE; // Action souhaitée par l'utilisateur
+    private static final GameClient API_CLIENT = new GameClient();
+
     public static void main(String[] args) {
-        String mazeJson = fetchMazeData(API_URL);
-        if (mazeJson != null) {
-            MazeData data = parseMazeData(mazeJson);
-            if (data != null) {
-                displayMaze(data);
-                promptAndSendRating(data.ident());
-            }
-        }
-    }
-
-    /**
-     * Effectue une requête HTTP GET vers l'API Render
-     */
-    private static String fetchMazeData(String urlString) {
-        System.out.println("Requête à l'API Render : " + urlString);
         try {
-            // Utilisation de URI pour éviter l'avertissement de dépréciation
-            URL url = new URI(urlString).toURL();
-            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-            connection.setRequestMethod("GET");
-
-            int responseCode = connection.getResponseCode();
-            
-            if (responseCode == HttpURLConnection.HTTP_OK) {
-                // Succès (200 OK): Lire la réponse JSON
-                try (BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
-                    StringBuilder response = new StringBuilder();
-                    String inputLine;
-                    while ((inputLine = in.readLine()) != null) {
-                        response.append(inputLine);
-                    }
-                    return response.toString();
-                }
-            } else {
-                // Erreur (400 Bad Request, 500 Internal Server Error)
-                System.err.println("Erreur HTTP lors de la récupération du labyrinthe: " + responseCode);
-                // Tente de lire le message d'erreur du serveur
-                try (BufferedReader in = new BufferedReader(new InputStreamReader(connection.getErrorStream()))) {
-                    String error = in.readLine();
-                    if (error != null) {
-                        System.err.println("Message du serveur: " + error);
-                    }
-                }
-                return null;
-            }
+            MazeData data = API_CLIENT.fetchMazeData();
+            JFrame frame = setupDisplay(data);
+            promptAndSendRating(data.ident());
+            startGame(frame);
         } catch (URISyntaxException e) {
-            System.err.println("Erreur de syntaxe d'URL : " + e.getMessage());
-            return null;
+            System.err.println("Erreur de syntaxe d'URL critique : " + e.getMessage());
         } catch (IOException e) {
-             System.err.println("Erreur réseau (vérifiez si Render est démarré) : " + e.getMessage());
-            return null;
-        }
-    }
-
-    /**
-     * Utilise Gson pour parser la chaîne JSON en objet MazeData
-     */
-    private static MazeData parseMazeData(String json) {
-        try {
-            Gson gson = new Gson();
-            return gson.fromJson(json, MazeData.class);
+             System.err.println("Erreur de communication critique (vérifiez le serveur Cloud) : " + e.getMessage());
         } catch (Exception e) {
-            System.err.println("Erreur de parsing JSON (la structure MazeData est peut-être erronée) : " + e.getMessage());
-            return null;
+            System.err.println("Erreur inattendue : " + e.getMessage());
         }
     }
 
     /**
      * Affiche la grille du labyrinthe dans une fenêtre Swing
      */
-    private static void displayMaze(MazeData data) {
+    private static JFrame setupDisplay(MazeData data) {
         System.out.println("Lancement de la visualisation graphique (W=" + data.width() + ", H=" + data.height() + ")");
         List<List<Integer>> gridList = data.grid();
         int height = gridList.size();
@@ -100,15 +53,31 @@ public class LocalClient {
                 gridArray[y][x] = row.get(x);
             }
         }
-        SwingUtilities.invokeLater(() -> {
-            JFrame frame = new JFrame("Labyrinthe récupéré de Render(ID: " + data.ident() + ")");
-            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+        JFrame frame = new JFrame("Labyrinthe récupéré de Render(ID: " + data.ident() + ")");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             
-            frame.add(new MazeVisualizerPanel(gridArray)); 
-            frame.pack();
-            frame.setLocationRelativeTo(null);
-            frame.setVisible(true);
+        MazeVisualizerPanel panel = new MazeVisualizerPanel(gridArray);
+        frame.add(panel);
+        frame.pack();
+        frame.setLocationRelativeTo(null);
+        frame.setVisible(true);
+
+        // Gestion des événements clavier pour capturer les actions de l'utilisateur
+        panel.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                desiredAction = switch (e.getKeyCode()) {
+                    case KeyEvent.VK_UP -> Action.UP;
+                    case KeyEvent.VK_DOWN -> Action.DOWN;
+                    case KeyEvent.VK_LEFT -> Action.LEFT;
+                    case KeyEvent.VK_RIGHT -> Action.RIGHT;
+                    default -> Action.NONE;
+                };
+            }
         });
+        panel.requestFocusInWindow();
+        return frame;
     }
 
     /**
@@ -125,12 +94,15 @@ public class LocalClient {
             try {
                 int note = Integer.parseInt(input.trim());
                 if (note >= 0 && note <= 5) {
-                    sendRating(ident, note);
+                    API_CLIENT.sendRating(ident, note);
+                    JOptionPane.showMessageDialog(null, "Notation enregistrée (Note: " + note + ")!", "Succès", JOptionPane.INFORMATION_MESSAGE);
                 } else {
                     JOptionPane.showMessageDialog(null, "La note doit être entre 0 et 5.", "Erreur de saisie", JOptionPane.ERROR_MESSAGE);
                 }
             } catch (NumberFormatException e) {
                 JOptionPane.showMessageDialog(null, "Veuillez entrer un nombre valide.", "Erreur de format", JOptionPane.ERROR_MESSAGE);
+            } catch (IOException | URISyntaxException e) { 
+                 JOptionPane.showMessageDialog(null, "Erreur réseau lors de la notation : " + e.getMessage(), "Erreur", JOptionPane.ERROR_MESSAGE);
             }
         } else if (input != null) {
             System.out.println("Notation annulée par l'utilisateur.");
@@ -138,52 +110,64 @@ public class LocalClient {
     }
 
     /**
-     * Envoie la notation à l'API Render via une requête HTTP POST
+     * Démarre la session de jeu sur le Cloud et lance la boucle de jeu
      */
-    private static void sendRating(String ident, int note) {
-        System.out.println("Envoi de la note " + note + " pour l'ID " + ident + "...");
-        try {
-            // Utilisation de URI pour éviter l'avertissement de dépréciation
-            URL url = new URI(API_RATING_URL).toURL();
-            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-            
-            // Configuration de la connexion POST
-            connection.setRequestMethod("POST");
-            connection.setRequestProperty("Content-Type", "application/json"); // Indique que nous envoyons du JSON
-            connection.setDoOutput(true); // Permet d'écrire dans le corps de la requête
-            
-            // Corps de la requête JSON
-            String jsonInputString = String.format("{\"ident\": \"%s\", \"note\": %d}", ident, note);
-            
-            // Envoi du JSON
-            try(OutputStream os = connection.getOutputStream()) {
-                byte[] input = jsonInputString.getBytes("utf-8");
-                os.write(input, 0, input.length);			
-            }
+    private static void startGame(JFrame frame) throws Exception {
+        // Utilise GameClient
+        GameStateResponse initialState = API_CLIENT.startGame();
+        currentGameId = initialState.gameId();
+        System.out.println("Partie démarrée. ID de la session : " + currentGameId);
 
-            // Lecture de la réponse du serveur
-            int responseCode = connection.getResponseCode();
-            System.out.println("Réponse du serveur (Notation) : " + responseCode);
+        MazeVisualizerPanel panel = (MazeVisualizerPanel) frame.getContentPane().getComponent(0);
+        updatePanel(panel, initialState);
 
-            InputStream inputStream = (responseCode >= 200 && responseCode <= 299) ? connection.getInputStream() : connection.getErrorStream();
-            
-            try(BufferedReader br = new BufferedReader(new InputStreamReader(inputStream, "utf-8"))) {
-                // Lit toute la réponse
-                String responseText = br.lines().collect(Collectors.joining("\n"));
-                System.out.println("Message du serveur : " + responseText);
+        startCloudGameLoop(panel);
+    }
 
-                if (responseCode == 200) {
-                     JOptionPane.showMessageDialog(null, "Notation enregistrée (Note: " + note + ")!", "Succès", JOptionPane.INFORMATION_MESSAGE);
+    /**
+     * Boucle principale de jeu : envoie les actions au Cloud et met à jour l'affichage
+     */
+    private static void startCloudGameLoop(MazeVisualizerPanel panel) {
+        // Timer Swing pour gérer la boucle de jeu
+        Timer timer = new Timer(120, ev -> {
+            try {
+                // Utilise GameClient pour envoyer l'action et recevoir le nouvel état
+                GameStateResponse newState = API_CLIENT.sendActionAndGetState(currentGameId, desiredAction);
+                if (newState != null) {
+                    updatePanel(panel, newState);
+                    // On réinitialise l'action à NONE
+                    desiredAction = Action.NONE;
+                    if (newState.levelCleared()) {
+                        ((Timer)ev.getSource()).stop();
+                        JOptionPane.showMessageDialog(null, "Niveau terminé! Score final: " + newState.score(), "Fin de Partie", JOptionPane.INFORMATION_MESSAGE);
+                    }
                 } else {
-                     JOptionPane.showMessageDialog(null, "Erreur de notation (" + responseCode + "): " + responseText, "Erreur", JOptionPane.ERROR_MESSAGE);
+                     // Arrête le timer en cas d'erreur
+                     throw new IOException("Réponse du serveur vide ou erreur lors du step.");
                 }
+            } catch (Exception e) {
+                 ((Timer)ev.getSource()).stop();
+                 JOptionPane.showMessageDialog(null, "Erreur critique dans la boucle de jeu : " + e.getMessage(), "Erreur", JOptionPane.ERROR_MESSAGE);
             }
+        });
+        timer.start();
+    }
 
-        } catch (URISyntaxException e) {
-            System.err.println("Erreur de syntaxe d'URL : " + e.getMessage());
-        } catch (IOException e) {
-            System.err.println("Erreur réseau lors de l'envoi de la note : " + e.getMessage());
-        }
+    /**
+     * Met à jour le panneau de visualisation avec le nouvel état du jeu
+     */
+    private static void updatePanel(MazeVisualizerPanel panel, GameStateResponse state) {
+        panel.setCloudGameData(
+            state.pac(), 
+            state.blinky(), 
+            state.smallPellets(), 
+            state.powerPellets(),
+            state.isFrightened()
+        );
+        // Mise à jour du titre de la fenêtre pour afficher le score
+        JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(panel);
+        frame.setTitle(String.format("Cloud Pac-Man (ID: %s) - Score: %d | Vies: %d", 
+                        state.gameId().substring(0, 8), state.score(), state.lives()));
     }
 
 }
