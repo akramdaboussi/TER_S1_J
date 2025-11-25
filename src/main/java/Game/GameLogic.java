@@ -50,16 +50,18 @@ public final class GameLogic {
 
         
         Action desired = s.getDesiredDir();
-        int[] turn = dirToDelta(desired);
+        if (desired != Action.NONE) {
+            int[] turn = dirToDelta(desired);
 
-        int turnX = e.x() + turn[0];
-        int turnY = e.y() + turn[1];
+            int turnX = e.x() + turn[0];
+            int turnY = e.y() + turn[1];
 
-        if (isWalk(m, turnX, turnY)) {
-            // Virage accepté
-            e.setDx(turn[0]);
-            e.setDy(turn[1]);
-            s.setCurrentDir(desired);
+            if (isWalk(m, turnX, turnY)) {
+                // Virage accepté
+                e.setDx(turn[0]);
+                e.setDy(turn[1]);
+                s.setCurrentDir(desired);
+            }
         }
         //deplacement direction actuelle
         int nx = e.x() + e.dx();
