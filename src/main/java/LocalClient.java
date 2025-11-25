@@ -19,7 +19,7 @@ import Game.GameStateResponse;
 public class LocalClient {
 
     private static String currentGameId = null;
-    private static Action desiredAction = Action.NONE; // Action souhaitée par l'utilisateur
+    private static Action desiredAction = Game.Action.NONE; // Action souhaitée par l'utilisateur
     private static final GameClient API_CLIENT = new GameClient();
 
     public static void main(String[] args) {
@@ -68,11 +68,11 @@ public class LocalClient {
             @Override
             public void keyPressed(KeyEvent e) {
                 desiredAction = switch (e.getKeyCode()) {
-                    case KeyEvent.VK_UP -> Action.UP;
-                    case KeyEvent.VK_DOWN -> Action.DOWN;
-                    case KeyEvent.VK_LEFT -> Action.LEFT;
-                    case KeyEvent.VK_RIGHT -> Action.RIGHT;
-                    default -> Action.NONE;
+                    case KeyEvent.VK_UP -> Game.Action.UP;
+                    case KeyEvent.VK_DOWN -> Game.Action.DOWN;
+                    case KeyEvent.VK_LEFT -> Game.Action.LEFT;
+                    case KeyEvent.VK_RIGHT -> Game.Action.RIGHT;
+                    default -> Game.Action.NONE;
                 };
             }
         });
@@ -135,8 +135,6 @@ public class LocalClient {
                 GameStateResponse newState = API_CLIENT.sendActionAndGetState(currentGameId, desiredAction);
                 if (newState != null) {
                     updatePanel(panel, newState);
-                    // On réinitialise l'action à NONE
-                    desiredAction = Action.NONE;
                     if (newState.levelCleared()) {
                         ((Timer)ev.getSource()).stop();
                         JOptionPane.showMessageDialog(null, "Niveau terminé! Score final: " + newState.score(), "Fin de Partie", JOptionPane.INFORMATION_MESSAGE);
