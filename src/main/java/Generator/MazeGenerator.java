@@ -65,7 +65,7 @@ public class MazeGenerator {
         }
 
         // Suppression des culs-de-sac pour créer des boucles supplémentaires
-        removeDeadEnds(maze, random);
+        // removeDeadEnds(maze, random);
     }
 
     /*

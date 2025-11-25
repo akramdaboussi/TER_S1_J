@@ -24,8 +24,8 @@ public final class GameApi {
       PelletField pf = PelletPlacer.place(maze);
       GameConfig cfg = new GameConfig();
 
-      EntityPos pac = GameLogic.findSpawn(maze);
-      EntityPos blinky = GameLogic.findSpawn(maze);
+      EntityPos pac = cfg.pacSpawn;
+      EntityPos blinky = cfg.blinkySpawn;
 
       GameState gs = new GameState(maze, pf, cfg, pac, blinky);
       String id = UUID.randomUUID().toString();
