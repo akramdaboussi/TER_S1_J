@@ -3,7 +3,6 @@ import java.util.Random;
 import com.google.gson.Gson;
 
 import Database.MongoDBService;
-import Game.Api.GameApi;
 import Generator.*;
 import Model.*;
 import static spark.Spark.*;
@@ -36,8 +35,6 @@ public class Main {
         dbService = new MongoDBService();
         
         System.out.println("Démarrage du Maze Generator sur le port: " + port);
-
-        GameApi.mount();
 
         // Définition de l'API: GET /api/labyrinthe (Génération et stockage)
         get( API_ENDPOINT, (request, response) -> {
