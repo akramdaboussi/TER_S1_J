@@ -1,7 +1,7 @@
 package Game;
 
 public final class GameConfig {
-  public int tickPerSecond = 8;
+  public int tickPerSecond = 10;
   public int frightenedTicks = 6 * tickPerSecond;
 
   public int pelletScore = 10;
