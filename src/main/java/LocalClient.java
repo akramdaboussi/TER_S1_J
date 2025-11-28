@@ -1,6 +1,8 @@
 import java.io.*;
 import java.net.*;
 import java.util.List;
+import java.util.Map;
+
 import javax.swing.*;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
@@ -9,7 +11,8 @@ import Model.MazeData;
 import View.MazeVisualizerPanel; 
 import Game.Action;
 import Game.Api.GameClient;
-import Game.GameStateResponse;
+import Model.Maze;
+import Game.*;
 
 /**
  * Client Cloud pour Pac-Man
@@ -18,16 +21,19 @@ import Game.GameStateResponse;
  */
 public class LocalClient {
 
-    private static String currentGameId = null;
-    private static Action desiredAction = Game.Action.NONE; // Action souhaitée par l'utilisateur
+    private static GameState localGameState = null;
+    private static Action desiredAction = Game.Action.NONE;
     private static final GameClient API_CLIENT = new GameClient();
 
     public static void main(String[] args) {
         try {
+            // Récupération du labyrinthe du Cloud
             MazeData data = API_CLIENT.fetchMazeData();
             JFrame frame = setupDisplay(data);
+            // Evaluation
             promptAndSendRating(data.ident());
-            startGame(frame);
+            // Démarrage du jeu
+            startGame(frame, data);
         } catch (URISyntaxException e) {
             System.err.println("Erreur de syntaxe d'URL critique : " + e.getMessage());
         } catch (IOException e) {
@@ -38,10 +44,9 @@ public class LocalClient {
     }
 
     /**
-     * Affiche la grille du labyrinthe dans une fenêtre Swing
+     * Convertit les MazeData en un MazeVisualizerPanel configuré et ajoute l'écouteur de clavier.
      */
-    private static JFrame setupDisplay(MazeData data) {
-        System.out.println("Lancement de la visualisation graphique (W=" + data.width() + ", H=" + data.height() + ")");
+    private static MazeVisualizerPanel createAndConfigurePanel(MazeData data) {
         List<List<Integer>> gridList = data.grid();
         int height = gridList.size();
         int width = gridList.get(0).size();
@@ -54,15 +59,9 @@ public class LocalClient {
             }
         }
 
-        JFrame frame = new JFrame("Labyrinthe récupéré de Render(ID: " + data.ident() + ")");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            
+        // Utilisation du MazeVisualizerPanel existant
         MazeVisualizerPanel panel = new MazeVisualizerPanel(gridArray);
-        frame.add(panel);
-        frame.pack();
-        frame.setLocationRelativeTo(null);
-        frame.setVisible(true);
-
+        
         // Gestion des événements clavier pour capturer les actions de l'utilisateur
         panel.addKeyListener(new KeyAdapter() {
             @Override
@@ -76,6 +75,23 @@ public class LocalClient {
                 };
             }
         });
+        return panel;
+    }
+
+    /**
+     * Affiche la grille du labyrinthe dans une fenêtre Swing
+     */
+    private static JFrame setupDisplay(MazeData data) {
+        System.out.println("Lancement de la visualisation graphique (W=" + data.width() + ", H=" + data.height() + ")");
+        JFrame frame = new JFrame("Labyrinthe récupéré de Render(ID: " + data.ident() + ")");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            
+        MazeVisualizerPanel panel = createAndConfigurePanel(data);
+        frame.add(panel);
+        frame.pack();
+        frame.setLocationRelativeTo(null);
+        frame.setVisible(true);
+
         panel.requestFocusInWindow();
         return frame;
     }
@@ -110,42 +126,76 @@ public class LocalClient {
     }
 
     /**
-     * Démarre la session de jeu sur le Cloud et lance la boucle de jeu
+     * Convertit l'état interne du jeu en un DTO de réponse pour l'affichage
      */
-    private static void startGame(JFrame frame) throws Exception {
-        // Utilise GameClient
-        GameStateResponse initialState = API_CLIENT.startGame();
-        currentGameId = initialState.gameId();
-        System.out.println("Partie démarrée. ID de la session : " + currentGameId);
-
-        MazeVisualizerPanel panel = (MazeVisualizerPanel) frame.getContentPane().getComponent(0);
-        updatePanel(panel, initialState);
-
-        startCloudGameLoop(panel);
+    private static GameStateResponse createResponseFromLocalState(GameState s) {
+        // Utilise l'état local pour construire l'objet d'affichage GameStateResponse
+        return new GameStateResponse(
+            "LOCAL_GAME", 
+            s.tick(),
+            s.score(),
+            s.lives(),
+            s.levelCleared,
+            s.isFrightened(),
+            Map.of("x",s.pac.x(),"y",s.pac.y(),"dx",s.pac.dx(),"dy",s.pac.dy()),
+            Map.of("x",s.blinky.x(),"y",s.blinky.y(),"dx",s.blinky.dx(),"dy",s.blinky.dy()),
+            s.pellets.remaining(),
+            s.maze.getMazeData(), 
+            s.pellets.getSmall(),
+            s.pellets.getPower()
+        );
     }
 
     /**
-     * Boucle principale de jeu : envoie les actions au Cloud et met à jour l'affichage
+     * Initialise l'état du jeu localement et lance la boucle de jeu.
      */
-    private static void startCloudGameLoop(MazeVisualizerPanel panel) {
-        // Timer Swing pour gérer la boucle de jeu
-        Timer timer = new Timer(120, ev -> {
-            try {
-                // Utilise GameClient pour envoyer l'action et recevoir le nouvel état
-                GameStateResponse newState = API_CLIENT.sendActionAndGetState(currentGameId, desiredAction);
-                if (newState != null) {
-                    updatePanel(panel, newState);
-                    if (newState.levelCleared()) {
-                        ((Timer)ev.getSource()).stop();
-                        JOptionPane.showMessageDialog(null, "Niveau terminé! Score final: " + newState.score(), "Fin de Partie", JOptionPane.INFORMATION_MESSAGE);
-                    }
-                } else {
-                     // Arrête le timer en cas d'erreur
-                     throw new IOException("Réponse du serveur vide ou erreur lors du step.");
+    private static void startGame(JFrame frame, MazeData initialMazeData) throws Exception {
+        // Initialisation locale des composants de jeu
+        Maze maze = new Maze(initialMazeData); 
+        PelletField pf = PelletPlacer.place(maze); // Placement des pellets sur le labyrinthe évalué
+        GameConfig cfg = new GameConfig();
+        EntityPos pac = new EntityPos(cfg.pacSpawn.x(), cfg.pacSpawn.y(), cfg.pacSpawn.dx(), cfg.pacSpawn.dy()); 
+        EntityPos blinky = new EntityPos(cfg.blinkySpawn.x(), cfg.blinkySpawn.y(), cfg.blinkySpawn.dx(), cfg.blinkySpawn.dy());
+        localGameState = new GameState(maze, pf, cfg, pac, blinky);
+        
+        System.out.println("Partie démarrée");
+
+        // Récupère l'instance existante du MazeVisualizerPanel
+        MazeVisualizerPanel panel = (MazeVisualizerPanel) frame.getContentPane().getComponent(0);
+        
+        // Premier rendu de l'état (affiche les pastilles et entités)
+        updatePanel(panel, createResponseFromLocalState(localGameState));
+
+        // Lancement de la boucle de jeu locale
+        startLocalGameLoop(panel);
+    }
+
+
+    /**
+     * Boucle principale de jeu : exécute la logique de jeu en local à chaque tick.
+     */
+    private static void startLocalGameLoop(MazeVisualizerPanel panel) {
+        // Délai basé sur la configuration de GameConfig 
+        int delay = 1000 / localGameState.cfg.tickPerSecond; 
+        
+        Timer timer = new Timer(delay, ev -> {
+            // Mise à jour de la direction souhaitée
+            localGameState.setDesiredDir(desiredAction); 
+            
+            // Exécution de la logique de jeu locale
+            GameLogic.step(localGameState);
+            
+            GameStateResponse newState = createResponseFromLocalState(localGameState);
+
+            if (newState != null) {
+                updatePanel(panel, newState);
+                
+                // Vérification des conditions de fin de partie
+                if (newState.levelCleared() || newState.lives() <= 0) {
+                    ((Timer)ev.getSource()).stop();
+                    String message = newState.levelCleared() ? "Niveau terminé!" : "Game Over!";
+                    JOptionPane.showMessageDialog(null, message + " Score final: " + newState.score(), "Fin de Partie", JOptionPane.INFORMATION_MESSAGE);
                 }
-            } catch (Exception e) {
-                 ((Timer)ev.getSource()).stop();
-                 JOptionPane.showMessageDialog(null, "Erreur critique dans la boucle de jeu : " + e.getMessage(), "Erreur", JOptionPane.ERROR_MESSAGE);
             }
         });
         timer.start();
