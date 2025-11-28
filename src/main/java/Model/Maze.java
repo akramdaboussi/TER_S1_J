@@ -40,6 +40,32 @@ public class Maze {
         }
     }
 
+    /* 
+     * Constructeur pour reconstruction depuis les données JSON
+    */
+    public Maze(MazeData data) {
+        this.width = data.width();
+        this.height = data.height();
+        this.ident = data.ident();
+        this.grid = new CellState[height][width];
+        
+        // Traduire la grille simple (int) en CellState
+        for (int y = 0; y < height; y++) {
+            List<Integer> row = data.grid().get(y);
+            for (int x = 0; x < width; x++) {
+                switch (row.get(x)) {
+                    case 0: this.grid[y][x] = CellState.SOL; break;
+                    case 1: this.grid[y][x] = CellState.MUR; break;
+                    case 2: this.grid[y][x] = CellState.MUR_PERMANENT; break;
+                    case 3: this.grid[y][x] = CellState.GHOST_HOUSE; break;
+                    case 4: this.grid[y][x] = CellState.TUNNEL; break;
+                    default: 
+                        this.grid[y][x] = CellState.MUR; 
+                }
+            }
+        }
+    }
+
     /*
      * Applique la structure fixe du labyrinthe (contours, Ghost house, tunnels) (début de construction de la structure fixe pacman)
     */
