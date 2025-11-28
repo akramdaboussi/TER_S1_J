@@ -18,8 +18,6 @@ public class GameClient {
     private static final String API_BASE_URL = "https://pacmaz-s1-j.onrender.com/api";
     private static final String API_MAZE_URL = API_BASE_URL + "/labyrinthe";
     private static final String API_RATING_URL = API_BASE_URL + "/labyrinthe/note"; 
-    private static final String API_GAME_START_URL = API_BASE_URL + "/game/start"; 
-    private static final String API_GAME_STEP_URL = API_BASE_URL + "/game/%s/step"; 
 
     private final Gson gson = new Gson();
 
@@ -40,26 +38,6 @@ public class GameClient {
         String jsonInputString = String.format("{\"ident\": \"%s\", \"note\": %d}", ident, note);
         sendPost(API_RATING_URL, jsonInputString, null); 
         return 200;
-    }
-
-    /**
-     * Démarre une nouvelle session de jeu sur le Render et retourne l'état initial du jeu
-     */
-    public GameStateResponse startGame() throws IOException, URISyntaxException {
-        System.out.println("Démarrage de la session de jeu sur le Cloud...");
-        String jsonResponse = sendPost(API_GAME_START_URL, "", null);
-        return gson.fromJson(jsonResponse, GameStateResponse.class);
-    }
-
-    /**
-     * Envoie l'action souhaitée au Render et récupère le nouvel état du jeu.
-     * @return L'état du jeu après l'action
-     */
-    public GameStateResponse sendActionAndGetState(String gameId, Action action) throws IOException, URISyntaxException {
-        String urlString = String.format(API_GAME_STEP_URL, gameId);
-        String jsonInputString = gson.toJson(action.toString());
-        String jsonResponse = sendPost(urlString, jsonInputString, null);
-        return gson.fromJson(jsonResponse, GameStateResponse.class);
     }
 
     // --- Méthodes Utilitaire de Connexion HTTP ---
@@ -85,7 +63,7 @@ public class GameClient {
         connection.setRequestProperty("Content-Type", "application/json"); 
         connection.setDoOutput(true); 
         
-        // Envoi du JSON (même s'il est vide pour startGame)
+        // Envoi du JSON 
         try(OutputStream os = connection.getOutputStream()) {
             byte[] input = jsonInput.getBytes("utf-8");
             os.write(input, 0, input.length);			
