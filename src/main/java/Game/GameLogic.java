@@ -20,7 +20,8 @@ public final class GameLogic {
         movePacman(s);
 
         // Déplacement du fantôme (v1)
-        moveGhostNoRng(s.maze, s.blinky);
+        moveGhostBlinky(s);
+
 
         // Consommation pellet / power pellet
         handlePelletConsumption(s);
@@ -132,32 +133,55 @@ public final class GameLogic {
 
     // ghost
 
-    private static void moveGhostNoRng(Maze m, EntityPos g) {
-        int[][] dirs = {{0,-1},{-1,0},{0,1},{1,0}}; // U L D R
+    private static void chooseDirection(Maze m, EntityPos g, int tx, int ty) {
 
-        for (int[] d : dirs) {
-            // Empêche demi-tour immédiat
-            if (d[0] == -g.dx() && d[1] == -g.dy())
-                continue;
+    int[][] dirs = {
+        {0,-1},   // Up
+        {-1,0},   // Left
+        {0,1},    // Down
+        {1,0}     // Right
+    };
 
-            int nx = g.x() + d[0];
-            int ny = g.y() + d[1];
+    double bestDist = Double.MAX_VALUE;
+    int bestDx = g.dx(), bestDy = g.dy(); // fallback = continuer tout droit
 
-            if (isWalk(m, nx, ny)) {
-                g.setX(nx);
-                g.setY(ny);
-                g.setDx(d[0]);
-                g.setDy(d[1]);
-                return;
-            }
+    for (int[] d : dirs) {
+
+        // éviter demi-tour immédiat
+        if (d[0] == -g.dx() && d[1] == -g.dy())
+            continue;
+
+        int nx = g.x() + d[0];
+        int ny = g.y() + d[1];
+
+        if (!isWalk(m, nx, ny))
+            continue;
+
+        double dist = Math.hypot(nx - tx, ny - ty);
+
+        if (dist < bestDist) {
+            bestDist = dist;
+            bestDx = d[0];
+            bestDy = d[1];
         }
-
-        // Demi-tour forcé
-        g.setDx(-g.dx());
-        g.setDy(-g.dy());
-        g.setX(g.x() + g.dx());
-        g.setY(g.y() + g.dy());
     }
+
+    // déplacer le fantôme
+    g.setDx(bestDx);
+    g.setDy(bestDy);
+    g.setX(g.x() + bestDx);
+    g.setY(g.y() + bestDy);
+    }
+
+
+    private static void moveGhostBlinky(GameState s) {
+    EntityPos g = s.blinky;
+    EntityPos pac = s.pac;
+
+    chooseDirection(s.maze, g, pac.x(), pac.y());
+
+    }
+
 
     // utilitaires
 
