@@ -12,3 +12,9 @@ target/
 .idea/
 .vscode/
 *.iml
+
+# Fichiers de données générés par le jeu (Enregistrement & Simulation)
+trajectoire_joueur.txt
+resultat_simulation.txt
+replay.txt
+*.csv
