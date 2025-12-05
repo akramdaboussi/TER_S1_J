@@ -1,5 +1,8 @@
 import java.io.*;
 import java.net.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -21,19 +24,36 @@ import Game.*;
  */
 public class LocalClient {
 
+    private static final String INPUT_FILE = "trajectoire_joueur.txt";
+    private static final String OUTPUT_FILE = "resultat_simulation.txt";
+    
+    // Etat du client local
     private static GameState localGameState = null;
-    private static Action desiredAction = Game.Action.NONE;
+    private static Timer timer = null;
+    private static MazeData data = null;
     private static final GameClient API_CLIENT = new GameClient();
 
+    // Pour détecter les changements (scores et vies)
+    private static int lastScore = 0;
+    private static int lastLives = 3;
+
+    // Phases du jeu 
+    private enum GamePhase { RECORDING, SIMULATION};
+    private static GamePhase currentPhase = GamePhase.RECORDING;
+
+    // Données de jeu
+    private static Action desiredAction = Action.NONE;
+    private static List<String> recordedPath = new ArrayList<>();   // Partie 1 (Input)
+    private static List<String> simulationLog = new ArrayList<>();  // Partie 2 (Output)
     public static void main(String[] args) {
         try {
             // Récupération du labyrinthe du Cloud
-            MazeData data = API_CLIENT.fetchMazeData();
+            data = API_CLIENT.fetchMazeData();
             JFrame frame = setupDisplay(data);
             // Evaluation
             promptAndSendRating(data.ident());
             // Démarrage du jeu
-            startGame(frame, data);
+            startRecordingPhase(frame);
         } catch (URISyntaxException e) {
             System.err.println("Erreur de syntaxe d'URL critique : " + e.getMessage());
         } catch (IOException e) {
@@ -43,57 +63,183 @@ public class LocalClient {
         }
     }
 
-    /**
-     * Convertit les MazeData en un MazeVisualizerPanel configuré et ajoute l'écouteur de clavier.
-     */
-    private static MazeVisualizerPanel createAndConfigurePanel(MazeData data) {
-        List<List<Integer>> gridList = data.grid();
-        int height = gridList.size();
-        int width = gridList.get(0).size();
-        int[][] gridArray = new int[height][width];
-
-        for (int y = 0; y < height; y++) {
-            List<Integer> row = gridList.get(y);
-            for (int x = 0; x < width; x++) {
-                gridArray[y][x] = row.get(x);
-            }
-        }
-
-        // Utilisation du MazeVisualizerPanel existant
-        MazeVisualizerPanel panel = new MazeVisualizerPanel(gridArray);
+    // --- Phase 1 : Enregistrement des mouvements du joueur ---
+    private static void startRecordingPhase(JFrame frame) {
+        currentPhase = GamePhase.RECORDING;
+        recordedPath.clear();
+        desiredAction = Action.NONE; // Reset des inputs clavier
         
-        // Gestion des événements clavier pour capturer les actions de l'utilisateur
-        panel.addKeyListener(new KeyAdapter() {
-            @Override
-            public void keyPressed(KeyEvent e) {
-                desiredAction = switch (e.getKeyCode()) {
-                    case KeyEvent.VK_UP -> Game.Action.UP;
-                    case KeyEvent.VK_DOWN -> Game.Action.DOWN;
-                    case KeyEvent.VK_LEFT -> Game.Action.LEFT;
-                    case KeyEvent.VK_RIGHT -> Game.Action.RIGHT;
-                    default -> Game.Action.NONE;
-                };
-            }
-        });
-        return panel;
+        System.out.println(">>> DÉBUT PHASE 1 : ENREGISTREMENT (Joueur aux commandes)");
+        startGame(frame); 
+    }
+
+    // --- Phase 2 : Simulation (l'ordi rejoue avec les fantômes) ---
+    private static void startSimulationPhase(JFrame frame) {
+        currentPhase = GamePhase.SIMULATION;
+        simulationLog.clear();
+        
+        // En-tête du fichier
+        simulationLog.add("TICK;PAC_X;PAC_Y;GHOST_X;GHOST_Y;EVENT");
+
+        System.out.println(">>> DÉBUT PHASE 2 : SIMULATION (Fantôme)");
+        startGame(frame);
     }
 
     /**
-     * Affiche la grille du labyrinthe dans une fenêtre Swing
+     * Initialise l'état du jeu localement et lance la boucle de jeu.
      */
-    private static JFrame setupDisplay(MazeData data) {
-        System.out.println("Lancement de la visualisation graphique (W=" + data.width() + ", H=" + data.height() + ")");
-        JFrame frame = new JFrame("Labyrinthe récupéré de Render(ID: " + data.ident() + ")");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            
-        MazeVisualizerPanel panel = createAndConfigurePanel(data);
-        frame.add(panel);
-        frame.pack();
-        frame.setLocationRelativeTo(null);
-        frame.setVisible(true);
+    private static void startGame(JFrame frame) {
+        if (timer != null && timer.isRunning()) timer.stop();
+        // Initialisation locale des composants de jeu
+        Maze maze = new Maze(data); 
+        PelletField pf = PelletPlacer.place(maze); // Placement des pellets sur le labyrinthe évalué
+        GameConfig cfg = new GameConfig();
+        EntityPos pac = new EntityPos(cfg.pacSpawn.x(), cfg.pacSpawn.y(), cfg.pacSpawn.dx(), cfg.pacSpawn.dy()); 
+        EntityPos blinky = new EntityPos(cfg.blinkySpawn.x(), cfg.blinkySpawn.y(), cfg.blinkySpawn.dx(), cfg.blinkySpawn.dy());
+        localGameState = new GameState(maze, pf, cfg, pac, blinky);
 
+        // Récupère l'instance existante du MazeVisualizerPanel
+        MazeVisualizerPanel panel = (MazeVisualizerPanel) frame.getContentPane().getComponent(0);
+        
+        // Premier rendu de l'état (affiche les pastilles et entités)
+        updatePanel(panel, createResponse(localGameState));
         panel.requestFocusInWindow();
-        return frame;
+        // Lancement de la boucle de jeu locale
+        startGameLoop(panel);
+    }
+
+    /**
+     * Boucle principale de jeu : exécute la logique de jeu en local à chaque tick.
+     */
+    private static void startGameLoop(MazeVisualizerPanel panel) {
+        // Délai basé sur la configuration de GameConfig 
+        int delay = 1000 / localGameState.cfg.tickPerSecond; 
+        
+        timer = new Timer(delay, ev -> {
+            if (currentPhase == GamePhase.RECORDING) {
+                // Mise à jour de la direction souhaitée
+                localGameState.setDesiredDir(desiredAction);
+                // Mouvement du joueur seul 
+                GameLogic.stepRecording(localGameState);
+                // Enregistrement de la position du joueur
+                recordedPath.add(localGameState.pac.x() + "," + localGameState.pac.y());
+
+                if (localGameState.levelCleared) {
+                    ((Timer)ev.getSource()).stop();
+                    handleRecordingFinished(panel);
+                }
+            } else {
+                int tick = localGameState.tick();
+                if (tick < recordedPath.size()) {
+                    // Rejoue la direction enregistrée
+                    String[] parts = recordedPath.get(tick).split(",");
+                    localGameState.pac.setX(Integer.parseInt(parts[0]));
+                    localGameState.pac.setY(Integer.parseInt(parts[1]));
+
+                    GameLogic.stepReplay(localGameState);
+
+                    logSimulationStep();
+                } else {
+                    // Fin de la trajectoire
+                    ((Timer)ev.getSource()).stop();
+                    handleSimulationFinished(panel, "Fin de la trajectoire (Survie !)");
+                    return;
+                }       
+                // Fin si Mort ou Victoire
+                if (localGameState.lives() <= 0) {
+                    ((Timer)ev.getSource()).stop();
+                    handleSimulationFinished(panel, "Pac-Man a été attrapé en " + localGameState.tick() + " coups !");
+                } else if (localGameState.levelCleared) {
+                    ((Timer)ev.getSource()).stop();
+                    handleSimulationFinished(panel, "Niveau terminé !");
+                }
+            }
+            updatePanel(panel, createResponse(localGameState));
+        });
+        timer.start();
+    }
+
+    private static void handleRecordingFinished(MazeVisualizerPanel panel) {
+        saveToFile(INPUT_FILE, recordedPath);
+        System.out.println("Trajectoire enregistrée.");
+        JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(panel);
+        
+        // On lance la simulation ?
+        int n = JOptionPane.showConfirmDialog(
+            frame,
+            "Trajectoire enregistrée.\n\nVoulez-vous lancer la simulation avec le fantôme ?",
+            "Phase Suivante",
+            JOptionPane.YES_NO_OPTION
+        );
+        if (n == JOptionPane.YES_OPTION) {
+            startSimulationPhase(frame);
+        } else {
+            System.exit(0);
+        }
+    }
+
+    private static void handleSimulationFinished(MazeVisualizerPanel panel, String message) {
+        saveToFile(OUTPUT_FILE, simulationLog);
+        System.out.println("Rapport de simulation généré.");
+        
+        JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(panel);
+        Object[] options = {"Nouvelle Trajectoire", "Quitter"};
+        
+        int n = JOptionPane.showOptionDialog(frame,
+            message + "\n\nRésultat sauvegardé dans : " + OUTPUT_FILE + "\nQue faire ?",
+            "Fin Simulation",
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.INFORMATION_MESSAGE,
+            null,
+            options,
+            options[0]);
+
+        if (n == JOptionPane.YES_OPTION) {
+            startRecordingPhase(frame);
+        } else {
+            System.exit(0);
+        }
+    }
+
+    private static void logSimulationStep() {
+        String event = "RUNNING";
+
+        int currentScore = localGameState.score();
+        int currentLives = localGameState.lives();
+
+        if (currentLives < lastLives) {
+            if (currentLives == 0){
+                event = "DEATH";
+            } else {
+                event = "LOSE_LIFE";
+            }
+        } else if (localGameState.levelCleared) {
+            event = "WIN";
+        } else {
+            int diff = currentScore - lastScore;
+            if (diff > 0) {
+                if (diff == 10) event = "EAT_PELLET";
+                else if (diff == 50) event = "EAT_POWER";
+                else if (diff >= 200) event = "EAT_GHOST";
+            }
+        }
+        lastScore = currentScore;
+        lastLives = currentLives;
+        String line = String.format("%d;%d;%d;%d;%d;%s", 
+            localGameState.tick(), localGameState.pac.x(), localGameState.pac.y(),
+            localGameState.blinky.x(), localGameState.blinky.y(), event
+        );
+        simulationLog.add(line);
+    }
+
+
+    private static void saveToFile(String filename, List<String> data) {
+        try {
+            Files.write(Paths.get(filename), data);
+            System.out.println("Fichier sauvegardé : " + filename);
+        } catch (IOException e) {
+            System.err.println("Erreur sauvegarde " + filename + ": " + e.getMessage());
+        }
     }
 
     /**
@@ -126,96 +272,84 @@ public class LocalClient {
     }
 
     /**
-     * Convertit l'état interne du jeu en un DTO de réponse pour l'affichage
+     * Convertit les MazeData en un MazeVisualizerPanel configuré et ajoute l'écouteur de clavier.
      */
-    private static GameStateResponse createResponseFromLocalState(GameState s) {
-        // Utilise l'état local pour construire l'objet d'affichage GameStateResponse
-        return new GameStateResponse(
-            "LOCAL_GAME", 
-            s.tick(),
-            s.score(),
-            s.lives(),
-            s.levelCleared,
-            s.isFrightened(),
-            Map.of("x",s.pac.x(),"y",s.pac.y(),"dx",s.pac.dx(),"dy",s.pac.dy()),
-            Map.of("x",s.blinky.x(),"y",s.blinky.y(),"dx",s.blinky.dx(),"dy",s.blinky.dy()),
-            s.pellets.remaining(),
-            s.maze.getMazeData(), 
-            s.pellets.getSmall(),
-            s.pellets.getPower()
-        );
-    }
+    private static MazeVisualizerPanel createAndConfigurePanel(MazeData data) {
+        List<List<Integer>> gridList = data.grid();
+        int height = gridList.size();
+        int width = gridList.get(0).size();
+        int[][] gridArray = new int[height][width];
 
-    /**
-     * Initialise l'état du jeu localement et lance la boucle de jeu.
-     */
-    private static void startGame(JFrame frame, MazeData initialMazeData) throws Exception {
-        // Initialisation locale des composants de jeu
-        Maze maze = new Maze(initialMazeData); 
-        PelletField pf = PelletPlacer.place(maze); // Placement des pellets sur le labyrinthe évalué
-        GameConfig cfg = new GameConfig();
-        EntityPos pac = new EntityPos(cfg.pacSpawn.x(), cfg.pacSpawn.y(), cfg.pacSpawn.dx(), cfg.pacSpawn.dy()); 
-        EntityPos blinky = new EntityPos(cfg.blinkySpawn.x(), cfg.blinkySpawn.y(), cfg.blinkySpawn.dx(), cfg.blinkySpawn.dy());
-        localGameState = new GameState(maze, pf, cfg, pac, blinky);
+        for (int y = 0; y < height; y++) {
+            List<Integer> row = gridList.get(y);
+            for (int x = 0; x < width; x++) {
+                gridArray[y][x] = row.get(x);
+            }
+        }
+
+        // Utilisation du MazeVisualizerPanel existant
+        MazeVisualizerPanel panel = new MazeVisualizerPanel(gridArray);
         
-        System.out.println("Partie démarrée");
-
-        // Récupère l'instance existante du MazeVisualizerPanel
-        MazeVisualizerPanel panel = (MazeVisualizerPanel) frame.getContentPane().getComponent(0);
-        
-        // Premier rendu de l'état (affiche les pastilles et entités)
-        updatePanel(panel, createResponseFromLocalState(localGameState));
-
-        // Lancement de la boucle de jeu locale
-        startLocalGameLoop(panel);
-    }
-
-
-    /**
-     * Boucle principale de jeu : exécute la logique de jeu en local à chaque tick.
-     */
-    private static void startLocalGameLoop(MazeVisualizerPanel panel) {
-        // Délai basé sur la configuration de GameConfig 
-        int delay = 1000 / localGameState.cfg.tickPerSecond; 
-        
-        Timer timer = new Timer(delay, ev -> {
-            // Mise à jour de la direction souhaitée
-            localGameState.setDesiredDir(desiredAction); 
-            
-            // Exécution de la logique de jeu locale
-            GameLogic.step(localGameState);
-            
-            GameStateResponse newState = createResponseFromLocalState(localGameState);
-
-            if (newState != null) {
-                updatePanel(panel, newState);
-                
-                // Vérification des conditions de fin de partie
-                if (newState.levelCleared() || newState.lives() <= 0) {
-                    ((Timer)ev.getSource()).stop();
-                    String message = newState.levelCleared() ? "Niveau terminé!" : "Game Over!";
-                    JOptionPane.showMessageDialog(null, message + " Score final: " + newState.score(), "Fin de Partie", JOptionPane.INFORMATION_MESSAGE);
+        // Gestion des événements clavier pour capturer les actions de l'utilisateur
+        panel.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                // On ne contrôle la direction que pendant l'enregistrement sans les fantômes
+                if (currentPhase == GamePhase.RECORDING){
+                    desiredAction = switch (e.getKeyCode()) {
+                        case KeyEvent.VK_UP -> Game.Action.UP;
+                        case KeyEvent.VK_DOWN -> Game.Action.DOWN;
+                        case KeyEvent.VK_LEFT -> Game.Action.LEFT;
+                        case KeyEvent.VK_RIGHT -> Game.Action.RIGHT;
+                        default -> Game.Action.NONE;
+                    };
                 }
             }
         });
-        timer.start();
+        return panel;
+    }
+
+    /**
+     * Affiche la grille du labyrinthe dans une fenêtre Swing
+     */
+    private static JFrame setupDisplay(MazeData data) {
+        System.out.println("Lancement de la visualisation graphique (W=" + data.width() + ", H=" + data.height() + ")");
+        JFrame frame = new JFrame("Labyrinthe récupéré de Render(ID: " + data.ident() + ")");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        MazeVisualizerPanel panel = createAndConfigurePanel(data);
+        frame.add(panel);
+        frame.pack();
+        frame.setLocationRelativeTo(null);
+        frame.setVisible(true);
+        panel.requestFocusInWindow();
+        return frame;
+    }
+
+    /**
+     * Convertit l'état interne du jeu en un DTO de réponse pour l'affichage
+     */
+    private static GameStateResponse createResponse(GameState s) {
+        String mode = (currentPhase == GamePhase.RECORDING) ? "REC (Joueur)" : "SIMULATION (Fantôme)";
+        return new GameStateResponse(
+            mode, s.tick(), s.score(), s.lives(), s.levelCleared, s.isFrightened(), 
+            pos(s.pac), pos(s.blinky), s.pellets.remaining(), s.maze.getMazeData(), 
+            s.pellets.getSmall(), s.pellets.getPower()
+        );
+    }
+
+    private static Map<String, Integer> pos(EntityPos e) {
+        return Map.of("x", e.x(), "y", e.y(), "dx", e.dx(), "dy", e.dy());
     }
 
     /**
      * Met à jour le panneau de visualisation avec le nouvel état du jeu
      */
     private static void updatePanel(MazeVisualizerPanel panel, GameStateResponse state) {
-        panel.setCloudGameData(
-            state.pac(), 
-            state.blinky(), 
-            state.smallPellets(), 
-            state.powerPellets(),
-            state.isFrightened()
+        panel.setCloudGameData(state.pac(), state.blinky(), state.smallPellets(), 
+            state.powerPellets(), state.isFrightened()
         );
-        // Mise à jour du titre de la fenêtre pour afficher le score
         JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(panel);
-        frame.setTitle(String.format("Cloud Pac-Man (ID: %s) - Score: %d | Vies: %d", 
-                        state.gameId().substring(0, 8), state.score(), state.lives()));
+        if (frame != null) frame.setTitle("Mode: " + state.gameId() + " | Score: " + state.score() + " | Vies: " + state.lives());
     }
 
 }
