@@ -12,6 +12,8 @@ public class MazeVisualizerPanel extends JPanel {
 
     private Map<String, Integer> pacPosData;
     private Map<String, Integer> blinkyPosData;
+    private Map<String, Integer> pinkyPosData;
+    private Map<String, Integer> inkyPosData;
     private boolean[][] smallPelletsData;
     private boolean[][] powerPelletsData;
     private boolean isFrightened = false;
@@ -27,10 +29,12 @@ public class MazeVisualizerPanel extends JPanel {
     }
 
     // Méthode pour mettre à jour l'état du jeu à partir des données du Cloud
-    public void setCloudGameData(Map<String, Integer> pac, Map<String, Integer> blinky, 
+    public void setCloudGameData(Map<String, Integer> pac, Map<String, Integer> blinky, Map<String, Integer> pinky, Map<String, Integer> inky,
                                  boolean[][] smallPellets, boolean[][] powerPellets, boolean frightened) {
         this.pacPosData = pac;
         this.blinkyPosData = blinky;
+        this.pinkyPosData = pinky;
+        this.inkyPosData = inky;
         this.smallPelletsData = smallPellets;
         this.powerPelletsData = powerPellets;
         this.isFrightened = frightened;
@@ -144,11 +148,27 @@ public class MazeVisualizerPanel extends JPanel {
 
     //ghosts 
     private void drawGhosts(Graphics2D g) {
-        int gx = blinkyPosData.get("x") * CELL_SIZE;
-        int gy = blinkyPosData.get("y") * CELL_SIZE;
+    int gx = blinkyPosData.get("x") * CELL_SIZE;
+    int gy = blinkyPosData.get("y") * CELL_SIZE;
+    int px = pinkyPosData.get("x") * CELL_SIZE;
+    int py = pinkyPosData.get("y") * CELL_SIZE;
+    int ix = inkyPosData.get("x") * CELL_SIZE;
+    int iy = inkyPosData.get("y") * CELL_SIZE;
 
-        // Change la couleur si Pac-Man est frightened
-        g.setColor(isFrightened ? Color.BLUE : Color.RED);
-        g.fillOval(gx, gy, CELL_SIZE, CELL_SIZE);
-    }
+    // ---- Blinky (rouge ou bleu si frightened)
+    g.setColor(isFrightened ? Color.BLUE : Color.RED);
+    g.fillOval(gx, gy, CELL_SIZE, CELL_SIZE);
+
+    // ---- Pinky (rose ou bleu si frightened)
+    Color pink = new Color(255, 100, 180); // rose Pac-Man
+    g.setColor(isFrightened ? Color.BLUE : pink);
+    g.fillOval(px, py, CELL_SIZE, CELL_SIZE);
+
+    // ---- Inky (cyan ou bleu si frightened)
+    Color inkyBlue = new Color(0, 255, 255); // cyan
+    g.setColor(isFrightened ? Color.BLUE : inkyBlue);
+    g.fillOval(ix, iy, CELL_SIZE, CELL_SIZE);
+
+}
+
 }

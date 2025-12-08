@@ -96,7 +96,9 @@ public class LocalClient {
         GameConfig cfg = new GameConfig();
         EntityPos pac = new EntityPos(cfg.pacSpawn.x(), cfg.pacSpawn.y(), cfg.pacSpawn.dx(), cfg.pacSpawn.dy()); 
         EntityPos blinky = new EntityPos(cfg.blinkySpawn.x(), cfg.blinkySpawn.y(), cfg.blinkySpawn.dx(), cfg.blinkySpawn.dy());
-        localGameState = new GameState(maze, pf, cfg, pac, blinky);
+        EntityPos pinky = new EntityPos(cfg.pinkySpawn.x(), cfg.pinkySpawn.y(), cfg.pinkySpawn.dx(), cfg.pinkySpawn.dy());
+        EntityPos inky = new EntityPos(cfg.inkySpawn.x(), cfg.inkySpawn.y(), cfg.inkySpawn.dx(), cfg.inkySpawn.dy());
+        localGameState = new GameState(maze, pf, cfg, pac, blinky, pinky, inky);
 
         // Récupère l'instance existante du MazeVisualizerPanel
         MazeVisualizerPanel panel = (MazeVisualizerPanel) frame.getContentPane().getComponent(0);
@@ -126,7 +128,11 @@ public class LocalClient {
 
                 if (localGameState.levelCleared) {
                     ((Timer)ev.getSource()).stop();
+                    Timer delayTimer = new Timer(500, e -> {
                     handleRecordingFinished(panel);
+                });
+                    delayTimer.setRepeats(false);
+                    delayTimer.start();
                 }
             } else {
                 int tick = localGameState.tick();
@@ -142,16 +148,28 @@ public class LocalClient {
                 } else {
                     // Fin de la trajectoire
                     ((Timer)ev.getSource()).stop();
-                    handleSimulationFinished(panel, "Fin de la trajectoire (Survie !)");
+                    Timer delayTimer = new Timer(500, e -> {
+                        handleSimulationFinished(panel, "Fin de la trajectoire (Survie !)");
+                    });
+                    delayTimer.setRepeats(false);
+                    delayTimer.start();
                     return;
                 }       
                 // Fin si Mort ou Victoire
                 if (localGameState.lives() <= 0) {
                     ((Timer)ev.getSource()).stop();
-                    handleSimulationFinished(panel, "Pac-Man a été attrapé en " + localGameState.tick() + " coups !");
+                    Timer delayTimer = new Timer(500, e -> {
+                        handleSimulationFinished(panel, "Pac-Man a été attrapé en " + localGameState.tick() + " coups !");
+                    });
+                    delayTimer.setRepeats(false);
+                    delayTimer.start();
                 } else if (localGameState.levelCleared) {
                     ((Timer)ev.getSource()).stop();
-                    handleSimulationFinished(panel, "Niveau terminé !");
+                        Timer delayTimer = new Timer(500, e -> {
+                        handleSimulationFinished(panel, "Niveau terminé !");
+                    });
+                    delayTimer.setRepeats(false);
+                    delayTimer.start();
                 }
             }
             updatePanel(panel, createResponse(localGameState));
@@ -225,11 +243,18 @@ public class LocalClient {
         }
         lastScore = currentScore;
         lastLives = currentLives;
-        String line = String.format("%d;%d;%d;%d;%d;%s", 
-            localGameState.tick(), localGameState.pac.x(), localGameState.pac.y(),
-            localGameState.blinky.x(), localGameState.blinky.y(), event
-        );
-        simulationLog.add(line);
+        String line = String.format(
+        "%d;%d;%d;%d;%d;%d;%d;%s",
+        localGameState.tick(),
+        localGameState.pac.x(), localGameState.pac.y(),
+        localGameState.blinky.x(), localGameState.blinky.y(),
+        localGameState.pinky.x(), localGameState.pinky.y(),
+        localGameState.inky.x(), localGameState.inky.y(),
+        event
+    );
+
+    simulationLog.add(line);
+
     }
 
 
@@ -332,7 +357,7 @@ public class LocalClient {
         String mode = (currentPhase == GamePhase.RECORDING) ? "REC (Joueur)" : "SIMULATION (Fantôme)";
         return new GameStateResponse(
             mode, s.tick(), s.score(), s.lives(), s.levelCleared, s.isFrightened(), 
-            pos(s.pac), pos(s.blinky), s.pellets.remaining(), s.maze.getMazeData(), 
+            pos(s.pac), pos(s.blinky), pos(s.pinky), pos(s.inky), s.pellets.remaining(), s.maze.getMazeData(), 
             s.pellets.getSmall(), s.pellets.getPower()
         );
     }
@@ -345,7 +370,7 @@ public class LocalClient {
      * Met à jour le panneau de visualisation avec le nouvel état du jeu
      */
     private static void updatePanel(MazeVisualizerPanel panel, GameStateResponse state) {
-        panel.setCloudGameData(state.pac(), state.blinky(), state.smallPellets(), 
+        panel.setCloudGameData(state.pac(), state.blinky(), state.pinky(), state.inky(), state.smallPellets(),  
             state.powerPellets(), state.isFrightened()
         );
         JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(panel);

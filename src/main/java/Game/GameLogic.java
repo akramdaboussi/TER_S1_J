@@ -15,13 +15,19 @@ public final class GameLogic {
     public static void step(GameState s) {
         // Gestion des mouvements de Pac-Man
         movePacman(s);
+        // Check 1 : si pacman vient de marcher sur le fantôme
+        handleGhostCollision(s);
         // Déplacement du fantôme (v1)
         moveGhostBlinky(s);
+        // Déplacement Pinky
+        moveGhostPinky(s);
+        // Déplacement Inky 
+        moveGhostInky(s);
         // Consommation pellet / power pellet
         handlePelletConsumption(s);
         // Frightened
         handleFrightenedState(s);
-        // Collision Pac-Man / fantôme
+        // Check 2 : Si le fantôme vient de marcher sur pacman
         handleGhostCollision(s);
         // Fin de niveau
         checkLevelCleared(s);
@@ -39,7 +45,10 @@ public final class GameLogic {
 
     // Rejoue les mouvements enregistrés, cette fois avec les fantômes actifs
     public static void stepReplay(GameState s) {
+        handleGhostCollision(s);
         moveGhostBlinky(s);
+        moveGhostPinky(s);
+        moveGhostInky(s);
         handlePelletConsumption(s);
         handleFrightenedState(s);
         handleGhostCollision(s);
@@ -104,21 +113,35 @@ public final class GameLogic {
             s.setScore(s.score() + s.cfg.powerScore);
             s.setFrightened(true);
             s.setFrightenedEndTick(s.tick() + s.cfg.frightenedTicks);
+            s.blinky.setDx( -s.blinky.dx() );
+            s.blinky.setDy( -s.blinky.dy() );
+            s.pinky.setDx( -s.pinky.dx() );
+            s.pinky.setDy( -s.pinky.dy() );
+            s.inky.setDx( -s.inky.dx() );
+            s.inky.setDy( -s.inky.dy() );
         }
     }
 
+
+
     // collision fantôme
     private static void handleGhostCollision(GameState s) {
-        if (s.pac.x() == s.blinky.x() && s.pac.y() == s.blinky.y()) {
+        if (s.pac.x() == s.blinky.x() && s.pac.y() == s.blinky.y() || s.pac.x() == s.pinky.x() && s.pac.y() == s.pinky.y() || s.pac.x() == s.inky.x() && s.pac.y() == s.inky.y()) {
             if (s.isFrightened()) {
                 // fantôme mangé
                 s.setScore(s.score() + s.cfg.ghostScore1);
                 resetEntityPosition(s.blinky, s.cfg.blinkySpawn);
+                resetEntityPosition(s.pinky, s.cfg.pinkySpawn);
+                resetEntityPosition(s.inky, s.cfg.inkySpawn);
             } else {
                 // mort pac-man
                 s.setLives(s.lives() - 1);
-                resetEntityPosition(s.pac, s.cfg.pacSpawn);
-                resetEntityPosition(s.blinky, s.cfg.blinkySpawn);
+                if (s.lives() > 0) {
+                    resetEntityPosition(s.pac, s.cfg.pacSpawn);
+                    resetEntityPosition(s.blinky, s.cfg.blinkySpawn);
+                    resetEntityPosition(s.pinky, s.cfg.pinkySpawn);
+                    resetEntityPosition(s.inky, s.cfg.inkySpawn);
+                }
             }
         }
     }
@@ -175,6 +198,64 @@ public final class GameLogic {
         applyMove(m, g, bestDx, bestDy);
     }
 
+    private static int[] getPinkyTarget(GameState s) {
+        EntityPos pac = s.pac;
+
+        int dx = pac.dx();
+        int dy = pac.dy();
+
+        // Pinky vise 4 cases devant Pac-Man
+        int tx = pac.x() + 4 * dx;
+        int ty = pac.y() + 4 * dy;
+
+        return new int[]{tx, ty};
+    }
+
+    private static void moveGhostPinky(GameState s) {
+        EntityPos g = s.pinky;
+        Maze m = s.maze;
+
+        if (s.isFrightened()) {
+            moveRandomly(m, g);
+            return;
+        }
+
+        int[] target = getPinkyTarget(s);
+        chooseDirection(m, g, target[0], target[1]);
+    }
+
+    private static void moveGhostInky(GameState s) {
+    EntityPos inky = s.inky;
+    EntityPos pac = s.pac;
+    EntityPos blinky = s.blinky;
+    Maze m = s.maze;
+
+    if (s.isFrightened()) {
+        moveRandomly(m, inky);
+        return;
+    }
+
+    int tx = pac.x() + 2 * pac.dx(); // direction de Pac-Man
+    int ty = pac.y() + 2 * pac.dy();
+
+    if (tx < 0) tx = 0;
+    if (ty < 0) ty = 0;
+    if (tx >= m.getWidth()) tx = m.getWidth() - 1;
+    if (ty >= m.getHeight()) ty = m.getHeight() - 1;
+
+   
+    int vx = tx - blinky.x();
+    int vy = ty - blinky.y();
+
+    
+    int inkyTargetX = tx + vx;
+    int inkyTargetY = ty + vy;
+
+    chooseDirection(m, inky, inkyTargetX, inkyTargetY);
+}
+
+
+
     // frightened
     private static void moveRandomly(Maze m, EntityPos g) {
         int[][] dirs = {
@@ -186,7 +267,8 @@ public final class GameLogic {
         List<int[]> candidates = new ArrayList<>();
 
         for (int[] d : dirs) {
-            // On autorise le demi-tour en mode frightened
+            // éviter demi-tour immédiat
+            if (d[0] == -g.dx() && d[1] == -g.dy()) continue;
             int nx = g.x() + d[0];
             int ny = g.y() + d[1];
 

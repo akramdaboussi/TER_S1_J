@@ -15,6 +15,8 @@ public final class GameState {
     // Positions des entités
     public EntityPos pac;      // Pac-Man
     public EntityPos blinky;   // premier fantôme
+    public EntityPos pinky;    // deuxième fantôme (non utilisé pour l'instant)
+    public EntityPos inky;     // troisième fantôme (non utilisé pour l'instant)
 
     // deplacements
     private Action currentDir = Action.NONE;      // direction actuelle
@@ -25,12 +27,14 @@ public final class GameState {
     private int frightenedEndTick = -1;
 
     public GameState(Maze maze, PelletField pellets, GameConfig cfg,
-                     EntityPos pacStart, EntityPos blinkyStart) {
+                     EntityPos pacStart, EntityPos blinkyStart, EntityPos pinkyStart, EntityPos inkyStart) {
         this.maze = maze;
         this.pellets = pellets;
         this.cfg = cfg;
         this.pac = pacStart;
         this.blinky = blinkyStart;
+        this.pinky = pinkyStart;
+        this.inky = inkyStart;
     }
 
     // Getters & Setters
@@ -49,6 +53,8 @@ public final class GameState {
     // getters pour affichage
     public EntityPos pacmanPos() { return pac; }
     public EntityPos blinkyPos() { return blinky; }
+    public EntityPos pinkyPos() { return pinky; }
+    public EntityPos inkyPos() { return inky; }
     public PelletField pellets() { return pellets; }
 
     // deplacements
