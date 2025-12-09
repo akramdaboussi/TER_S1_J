@@ -59,6 +59,7 @@ public class Maze {
                     case 2: this.grid[y][x] = CellState.MUR_PERMANENT; break;
                     case 3: this.grid[y][x] = CellState.GHOST_HOUSE; break;
                     case 4: this.grid[y][x] = CellState.TUNNEL; break;
+                    case 5: this.grid[y][x] = CellState.PORTE; break;
                     default: 
                         this.grid[y][x] = CellState.MUR; 
                 }
@@ -89,8 +90,6 @@ public class Maze {
                 }
             }
         }
-        grid[ghYStart][width / 2 - 1] = CellState.SOL; 
-        grid[ghYStart][width / 2] = CellState.SOL;
 
         for (int yClear = ghYStart - 1; yClear <= ghYStart + 5; yClear++) {
             for (int xClear = ghXStart - 1; xClear <= ghXStart + 8; xClear++) {
@@ -125,6 +124,9 @@ public class Maze {
         grid[tunnelY][width - 1] = CellState.TUNNEL;
         grid[tunnelY][1] = CellState.SOL;
         grid[tunnelY][width - 2] = CellState.SOL;
+
+        grid[ghYStart][width / 2 - 1] = CellState.PORTE; 
+        grid[ghYStart][width / 2] = CellState.PORTE;
     }
 
     // Accesseurs (Getters/Setters) pour permettre la modification par le générateur
@@ -144,6 +146,7 @@ public class Maze {
                     case MUR_PERMANENT: simpleGrid[y][x] = 2; break;
                     case GHOST_HOUSE:   simpleGrid[y][x] = 3; break;
                     case TUNNEL:        simpleGrid[y][x] = 4; break;
+                    case PORTE:         simpleGrid[y][x] = 5; break;
                     default:            simpleGrid[y][x] = -1; break; // Pour repérer les erreurs
                 }
             }

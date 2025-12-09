@@ -100,6 +100,10 @@ public class LocalClient {
         EntityPos inky = new EntityPos(cfg.inkySpawn.x(), cfg.inkySpawn.y(), cfg.inkySpawn.dx(), cfg.inkySpawn.dy());
         localGameState = new GameState(maze, pf, cfg, pac, blinky, pinky, inky);
 
+        // Reset trackers
+        lastScore = 0;
+        lastLives = localGameState.lives();
+
         // Récupère l'instance existante du MazeVisualizerPanel
         MazeVisualizerPanel panel = (MazeVisualizerPanel) frame.getContentPane().getComponent(0);
         
@@ -128,12 +132,10 @@ public class LocalClient {
 
                 if (localGameState.levelCleared) {
                     ((Timer)ev.getSource()).stop();
-                    Timer delayTimer = new Timer(500, e -> {
-                    handleRecordingFinished(panel);
-                });
-                    delayTimer.setRepeats(false);
-                    delayTimer.start();
-                }
+                    updatePanel(panel, createResponse(localGameState));
+                    panel.paintImmediately(panel.getBounds());
+                    delayAndAction(500, () -> handleRecordingFinished(panel));
+                    }
             } else {
                 int tick = localGameState.tick();
                 if (tick < recordedPath.size()) {
@@ -148,35 +150,70 @@ public class LocalClient {
                 } else {
                     // Fin de la trajectoire
                     ((Timer)ev.getSource()).stop();
-                    Timer delayTimer = new Timer(500, e -> {
-                        handleSimulationFinished(panel, "Fin de la trajectoire (Survie !)");
-                    });
-                    delayTimer.setRepeats(false);
-                    delayTimer.start();
+                    updatePanel(panel, createResponse(localGameState));
+                    panel.paintImmediately(panel.getBounds());
+                    delayAndAction(500, () -> handleSimulationFinished(panel, "Fin de la trajectoire (Survie !)"));
                     return;
                 }       
                 // Fin si Mort ou Victoire
                 if (localGameState.lives() <= 0) {
                     ((Timer)ev.getSource()).stop();
-                    Timer delayTimer = new Timer(500, e -> {
-                        handleSimulationFinished(panel, "Pac-Man a été attrapé en " + localGameState.tick() + " coups !");
-                    });
-                    delayTimer.setRepeats(false);
-                    delayTimer.start();
+                    String msg = "Pac-Man a été attrapé en " + localGameState.tick() + " coups !";
+                    updatePanel(panel, createResponse(localGameState));
+                    panel.paintImmediately(panel.getBounds());
+                    delayAndAction(500, () -> handleSimulationFinished(panel, msg));
                 } else if (localGameState.levelCleared) {
                     ((Timer)ev.getSource()).stop();
-                        Timer delayTimer = new Timer(500, e -> {
-                        handleSimulationFinished(panel, "Niveau terminé !");
-                    });
-                    delayTimer.setRepeats(false);
-                    delayTimer.start();
+                        updatePanel(panel, createResponse(localGameState));
+                        panel.paintImmediately(panel.getBounds());
+                        delayAndAction(500, () -> handleSimulationFinished(panel, "Niveau terminé !"));
                 }
             }
-            updatePanel(panel, createResponse(localGameState));
+            if (timer.isRunning()){
+                updatePanel(panel, createResponse(localGameState));
+            }
         });
         timer.start();
     }
 
+    private static void delayAndAction(int ms, Runnable action) {
+        Timer t = new Timer(ms, e -> action.run());
+        t.setRepeats(false);
+        t.start();
+    }
+
+    private static void logSimulationStep() {
+        String event = "RUNNING";
+
+        int currentScore = localGameState.score();
+        int currentLives = localGameState.lives();
+
+        if (currentLives < lastLives) {
+            if (currentLives == 0){
+                event = "DEATH";
+            } else {
+                event = "LOSE_LIFE";
+            }
+        } else if (localGameState.levelCleared) {
+            event = "WIN";
+        } else {
+            int diff = currentScore - lastScore;
+            if (diff > 0) {
+                if (diff == 10) event = "EAT_PELLET";
+                else if (diff == 50) event = "EAT_POWER";
+                else if (diff >= 200) event = "EAT_GHOST";
+            }
+        }
+        lastScore = currentScore;
+        lastLives = currentLives;
+        String line = String.format("%d;%d;%d;%d;%d;%s", 
+            localGameState.tick(), localGameState.pac.x(), localGameState.pac.y(),
+            localGameState.blinky.x(), localGameState.blinky.y(), localGameState.pinky.x(), localGameState.pinky.y(),
+        localGameState.inky.x(), localGameState.inky.y(), event
+        );
+        simulationLog.add(line);
+    }
+    
     private static void handleRecordingFinished(MazeVisualizerPanel panel) {
         saveToFile(INPUT_FILE, recordedPath);
         System.out.println("Trajectoire enregistrée.");
@@ -218,45 +255,6 @@ public class LocalClient {
             System.exit(0);
         }
     }
-
-    private static void logSimulationStep() {
-        String event = "RUNNING";
-
-        int currentScore = localGameState.score();
-        int currentLives = localGameState.lives();
-
-        if (currentLives < lastLives) {
-            if (currentLives == 0){
-                event = "DEATH";
-            } else {
-                event = "LOSE_LIFE";
-            }
-        } else if (localGameState.levelCleared) {
-            event = "WIN";
-        } else {
-            int diff = currentScore - lastScore;
-            if (diff > 0) {
-                if (diff == 10) event = "EAT_PELLET";
-                else if (diff == 50) event = "EAT_POWER";
-                else if (diff >= 200) event = "EAT_GHOST";
-            }
-        }
-        lastScore = currentScore;
-        lastLives = currentLives;
-        String line = String.format(
-        "%d;%d;%d;%d;%d;%d;%d;%s",
-        localGameState.tick(),
-        localGameState.pac.x(), localGameState.pac.y(),
-        localGameState.blinky.x(), localGameState.blinky.y(),
-        localGameState.pinky.x(), localGameState.pinky.y(),
-        localGameState.inky.x(), localGameState.inky.y(),
-        event
-    );
-
-    simulationLog.add(line);
-
-    }
-
 
     private static void saveToFile(String filename, List<String> data) {
         try {
@@ -338,8 +336,7 @@ public class LocalClient {
      * Affiche la grille du labyrinthe dans une fenêtre Swing
      */
     private static JFrame setupDisplay(MazeData data) {
-        System.out.println("Lancement de la visualisation graphique (W=" + data.width() + ", H=" + data.height() + ")");
-        JFrame frame = new JFrame("Labyrinthe récupéré de Render(ID: " + data.ident() + ")");
+        JFrame frame = new JFrame("Pac-Man (ID: " + data.ident() + ")");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         MazeVisualizerPanel panel = createAndConfigurePanel(data);
         frame.add(panel);
@@ -370,11 +367,13 @@ public class LocalClient {
      * Met à jour le panneau de visualisation avec le nouvel état du jeu
      */
     private static void updatePanel(MazeVisualizerPanel panel, GameStateResponse state) {
-        panel.setCloudGameData(state.pac(), state.blinky(), state.pinky(), state.inky(), state.smallPellets(),  
-            state.powerPellets(), state.isFrightened()
+        panel.updateGameState(state.pac(), state.blinky(), state.pinky(), state.inky(), state.smallPellets(), 
+            state.powerPellets(), state.isFrightened(), state.score(), state.lives(), state.gameId()
         );
         JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(panel);
-        if (frame != null) frame.setTitle("Mode: " + state.gameId() + " | Score: " + state.score() + " | Vies: " + state.lives());
+        if (frame != null) {
+            frame.setTitle ("Pac-Man (ID: " + data.ident() + ")");
+        }
     }
 
 }

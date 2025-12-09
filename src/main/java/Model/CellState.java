@@ -8,5 +8,6 @@ public enum CellState {
     SOL,
     MUR_PERMANENT,
     GHOST_HOUSE,
-    TUNNEL
+    TUNNEL, 
+    PORTE
 }

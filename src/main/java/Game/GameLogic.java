@@ -10,13 +10,19 @@ import java.util.List;
  */
 public final class GameLogic {
 
+    // Constantes de position de la sortie de la ghost house
+    private static final int GHOST_EXIT_X = 14; 
+    private static final int GHOST_EXIT_Y = 12;
+
     // --- Points d'entrée principaux ---
 
     public static void step(GameState s) {
         // Gestion des mouvements de Pac-Man
         movePacman(s);
         // Check 1 : si pacman vient de marcher sur le fantôme
-        handleGhostCollision(s);
+        handleGhostCollision(s, true);
+        // Gestion de la sortie des fantômes
+        manageGhostRelease(s);
         // Déplacement du fantôme (v1)
         moveGhostBlinky(s);
         // Déplacement Pinky
@@ -28,7 +34,7 @@ public final class GameLogic {
         // Frightened
         handleFrightenedState(s);
         // Check 2 : Si le fantôme vient de marcher sur pacman
-        handleGhostCollision(s);
+        handleGhostCollision(s, true);
         // Fin de niveau
         checkLevelCleared(s);
         // Tick suivant
@@ -39,19 +45,21 @@ public final class GameLogic {
     public static void stepRecording(GameState s) {
         movePacman(s);
         handlePelletConsumption(s);
+        handleFrightenedState(s);
         checkLevelCleared(s);
         s.setTick(s.tick() + 1);
     }
 
     // Rejoue les mouvements enregistrés, cette fois avec les fantômes actifs
     public static void stepReplay(GameState s) {
-        handleGhostCollision(s);
+        handleGhostCollision(s, false);
+        manageGhostRelease(s);
         moveGhostBlinky(s);
         moveGhostPinky(s);
         moveGhostInky(s);
         handlePelletConsumption(s);
         handleFrightenedState(s);
-        handleGhostCollision(s);
+        handleGhostCollision(s, false);
         checkLevelCleared(s);
         s.setTick(s.tick() + 1);
     }
@@ -113,55 +121,179 @@ public final class GameLogic {
             s.setScore(s.score() + s.cfg.powerScore);
             s.setFrightened(true);
             s.setFrightenedEndTick(s.tick() + s.cfg.frightenedTicks);
-            s.blinky.setDx( -s.blinky.dx() );
-            s.blinky.setDy( -s.blinky.dy() );
-            s.pinky.setDx( -s.pinky.dx() );
-            s.pinky.setDy( -s.pinky.dy() );
-            s.inky.setDx( -s.inky.dx() );
-            s.inky.setDy( -s.inky.dy() );
+            
+            reverseIfActive(s.blinky, s.getBlinkyState());
+            reverseIfActive(s.pinky, s.getPinkyState());
+            reverseIfActive(s.inky, s.getInkyState());
         }
     }
 
-
+    private static void reverseIfActive(EntityPos g, GhostState state) {
+        if (state == GhostState.CHASE || state == GhostState.EXITING) {
+            g.setDx(-g.dx()); g.setDy(-g.dy());
+        }
+    }
 
     // collision fantôme
-    private static void handleGhostCollision(GameState s) {
-        if (s.pac.x() == s.blinky.x() && s.pac.y() == s.blinky.y() || s.pac.x() == s.pinky.x() && s.pac.y() == s.pinky.y() || s.pac.x() == s.inky.x() && s.pac.y() == s.inky.y()) {
+    private static void handleGhostCollision(GameState s, boolean resetPacman) {
+        boolean collision = 
+            (s.pac.x() == s.blinky.x() && s.pac.y() == s.blinky.y()) ||
+            (s.pac.x() == s.pinky.x() && s.pac.y() == s.pinky.y()) ||
+            (s.pac.x() == s.inky.x() && s.pac.y() == s.inky.y());
+        if (collision) {
             if (s.isFrightened()) {
                 // fantôme mangé
                 s.setScore(s.score() + s.cfg.ghostScore1);
-                resetEntityPosition(s.blinky, s.cfg.blinkySpawn);
-                resetEntityPosition(s.pinky, s.cfg.pinkySpawn);
-                resetEntityPosition(s.inky, s.cfg.inkySpawn);
+
+                // Reset Blinky 
+                resetGhost(s.blinky, s.cfg.blinkySpawn); 
+                s.setBlinkyState(GhostState.IN_HOUSE); 
+                s.setBlinkyReleaseTick(s.tick() + 20); 
+
+                // Reset Pinky
+                resetGhost(s.pinky, s.cfg.pinkySpawn);   
+                s.setPinkyState(GhostState.IN_HOUSE);
+                s.setPinkyReleaseTick(s.tick() + 60); 
+
+                // Reset Inky
+                resetGhost(s.inky, s.cfg.inkySpawn);     
+                s.setInkyState(GhostState.IN_HOUSE);
+                s.setInkyReleaseTick(s.tick() + 100); 
             } else {
                 // mort pac-man
                 s.setLives(s.lives() - 1);
                 if (s.lives() > 0) {
-                    resetEntityPosition(s.pac, s.cfg.pacSpawn);
-                    resetEntityPosition(s.blinky, s.cfg.blinkySpawn);
-                    resetEntityPosition(s.pinky, s.cfg.pinkySpawn);
-                    resetEntityPosition(s.inky, s.cfg.inkySpawn);
+                    if (resetPacman) {
+                        resetEntityPosition(s.pac, s.cfg.pacSpawn);
+                    }
+                    resetGhost(s.blinky, s.cfg.blinkySpawn); 
+                    s.setBlinkyState(GhostState.IN_HOUSE);
+                    s.setBlinkyReleaseTick(s.tick()); 
+                    
+                    resetGhost(s.pinky, s.cfg.pinkySpawn);   
+                    s.setPinkyState(GhostState.IN_HOUSE);
+                    s.setPinkyReleaseTick(s.tick() + 20); 
+                    
+                    resetGhost(s.inky, s.cfg.inkySpawn);     
+                    s.setInkyState(GhostState.IN_HOUSE);
+                    s.setInkyReleaseTick(s.tick() + 40);
                 }
             }
         }
     }
 
-    // ghost
-    private static void moveGhostBlinky(GameState s) {
-        EntityPos g = s.blinky;
-        EntityPos pac = s.pac;
-        Maze m = s.maze;
+    private static void resetGhost(EntityPos g, EntityPos spawn) {
+        resetEntityPosition(g, spawn);
+        g.setDx(0); g.setDy(0); 
+    }
 
-        if (s.isFrightened()){
-            moveRandomly(m, g);
-        } else {
-            chooseDirection(m, g, pac.x(), pac.y());
+    private static void manageGhostRelease(GameState s) {
+        int t = s.tick();
+        
+        // Blinky sort immédiatement
+        if (s.getBlinkyState() == GhostState.IN_HOUSE && t > s.getBlinkyReleaseTick()) {
+            s.setBlinkyState(GhostState.EXITING);
+        }
+        
+        // Pinky sort après 5 secondes 
+        if (s.getPinkyState() == GhostState.IN_HOUSE && t > s.getPinkyReleaseTick()) {
+            s.setPinkyState(GhostState.EXITING);
+        }
+
+        // Inky sort après 10 secondes
+        if (s.getInkyState() == GhostState.IN_HOUSE && t > s.getInkyReleaseTick()) {
+            s.setInkyState(GhostState.EXITING);
         }
     }
 
+    // Animation d'attente 
+    private static void moveIdle(Maze m, EntityPos g) {
+        // Si immobile horizontalement ou verticalement, on lance le mouvement
+        if (g.dy() == 0) g.setDy(1); 
+        
+        int ny = g.y() + g.dy();
+        CellState target = (ny >= 0 && ny < m.getHeight()) ? m.getState(g.x(), ny) : CellState.MUR;
+        
+        if (target == CellState.GHOST_HOUSE || target == CellState.SOL) {
+            applyMove(m, g, 0, g.dy());
+        } else {
+            g.setDy(-g.dy()); // Inverse la direction
+            applyMove(m, g, 0, g.dy());
+        }
+    }
+
+    // Logique de déplacement des fantômes
+    private static void moveGhost(GameState s, EntityPos g, GhostState currentState) {
+        Maze m = s.maze;
+
+        if (currentState == GhostState.IN_HOUSE) {
+            moveIdle(m, g);
+            return;
+        }
+
+        boolean isFrightened = s.isFrightened();
+
+        if (isFrightened) {
+            if (currentState == GhostState.CHASE) {
+                moveRandomly(m, g);
+                return;
+            }
+        }
+
+        if (currentState == GhostState.EXITING) {
+            chooseDirection(m, g, GHOST_EXIT_X, GHOST_EXIT_Y, true);
+            if (g.x() == GHOST_EXIT_X && g.y() <= GHOST_EXIT_Y) {
+                if (g == s.blinky) s.setBlinkyState(GhostState.CHASE);
+                else if (g == s.pinky) s.setPinkyState(GhostState.CHASE);
+                else if (g == s.inky) s.setInkyState(GhostState.CHASE);
+
+                g.setDx(-1); g.setDy(0);
+            }    
+            return;
+        }
+        // État CHASE
+        if (currentState == GhostState.CHASE) {
+            // Blinky (chasse Pac-Man)
+            if (g == s.blinky) {
+                chooseDirection(m, g, s.pac.x(), s.pac.y());
+            } 
+            // Pinky (chasse 4 cases devant Pac-Man)
+            else if (g == s.pinky) {
+                int[] target = getPinkyTarget(s);
+                chooseDirection(m, g, target[0], target[1]);
+            }
+            // Inky 
+            else if (g == s.inky) {
+
+                int tx = s.pac.x() + 2 * s.pac.dx(); 
+                int ty = s.pac.y() + 2 * s.pac.dy();
+                if (tx < 0) tx = 0;
+                if (ty < 0) ty = 0;
+                if (tx >= m.getWidth()) tx = m.getWidth() - 1;
+                if (ty >= m.getHeight()) ty = m.getHeight() - 1;
+                int vx = tx - s.blinky.x();
+                int vy = ty - s.blinky.y();
+                int inkyTargetX = tx + vx;
+                int inkyTargetY = ty + vy;
+                chooseDirection(m, g, inkyTargetX, inkyTargetY);
+            }
+        }
+    }  
+    
+    private static void moveGhostBlinky(GameState s) {
+        moveGhost(s, s.blinky, s.getBlinkyState());
+    }
+
+    private static void moveGhostPinky(GameState s) {
+        moveGhost(s, s.pinky, s.getPinkyState());
+    }
+
+    private static void moveGhostInky(GameState s) {
+        moveGhost(s, s.inky, s.getInkyState());
+    }
 
     // IA blinky
-    private static void chooseDirection(Maze m, EntityPos g, int tx, int ty) {
+    private static void chooseDirection(Maze m, EntityPos g, int tx, int ty, boolean allowSpecial) {
         int[][] dirs = {
             {0,-1},   // Up
             {-1,0},   // Left
@@ -169,22 +301,23 @@ public final class GameLogic {
             {1,0}     // Right
         };
         double bestDist = Double.MAX_VALUE;
-        int bestDx = g.dx(), bestDy = g.dy(); // fallback = continuer tout droit
-        boolean foundMove = false;
+        int bestDx = g.dx(), bestDy = g.dy(); 
+        boolean found = false;
 
         for (int[] d : dirs) {
             // éviter demi-tour immédiat
-            if (d[0] == -g.dx() && d[1] == -g.dy()) continue;
+            if (!allowSpecial && d[0] == -g.dx() && d[1] == -g.dy()) continue;
             int nx = g.x() + d[0];
             int ny = g.y() + d[1];
 
+            // Ajout du wrap-around
             if (nx < 0){
                 nx = m.getWidth() - 1;
             } else if (nx >= m.getWidth()) {
                 nx = 0;
             }
 
-            if (!isWalk(m, nx, ny)) continue;
+            if (!isWalk(m, nx, ny, allowSpecial)) continue;
 
             double dist = Math.hypot(nx - tx, ny - ty);
 
@@ -192,10 +325,22 @@ public final class GameLogic {
                 bestDist = dist;
                 bestDx = d[0];
                 bestDy = d[1];
-                foundMove = true;
+                found = true;
             }
         }
-        applyMove(m, g, bestDx, bestDy);
+        if (!found) {
+             if (allowSpecial) { 
+                 applyMove(m, g, 0, -1); 
+             } else {
+                 applyMove(m, g, -g.dx(), -g.dy());
+             }
+        } else {
+            applyMove(m, g, bestDx, bestDy);
+        }
+    }
+
+    private static void chooseDirection(Maze m, EntityPos g, int tx, int ty) {
+        chooseDirection(m, g, tx, ty, false);
     }
 
     private static int[] getPinkyTarget(GameState s) {
@@ -210,51 +355,6 @@ public final class GameLogic {
 
         return new int[]{tx, ty};
     }
-
-    private static void moveGhostPinky(GameState s) {
-        EntityPos g = s.pinky;
-        Maze m = s.maze;
-
-        if (s.isFrightened()) {
-            moveRandomly(m, g);
-            return;
-        }
-
-        int[] target = getPinkyTarget(s);
-        chooseDirection(m, g, target[0], target[1]);
-    }
-
-    private static void moveGhostInky(GameState s) {
-    EntityPos inky = s.inky;
-    EntityPos pac = s.pac;
-    EntityPos blinky = s.blinky;
-    Maze m = s.maze;
-
-    if (s.isFrightened()) {
-        moveRandomly(m, inky);
-        return;
-    }
-
-    int tx = pac.x() + 2 * pac.dx(); // direction de Pac-Man
-    int ty = pac.y() + 2 * pac.dy();
-
-    if (tx < 0) tx = 0;
-    if (ty < 0) ty = 0;
-    if (tx >= m.getWidth()) tx = m.getWidth() - 1;
-    if (ty >= m.getHeight()) ty = m.getHeight() - 1;
-
-   
-    int vx = tx - blinky.x();
-    int vy = ty - blinky.y();
-
-    
-    int inkyTargetX = tx + vx;
-    int inkyTargetY = ty + vy;
-
-    chooseDirection(m, inky, inkyTargetX, inkyTargetY);
-}
-
-
 
     // frightened
     private static void moveRandomly(Maze m, EntityPos g) {
@@ -282,8 +382,14 @@ public final class GameLogic {
                 candidates.add(d);
             }
         }
+        if (!candidates.isEmpty()) {
             int[] choice = candidates.get((int)(Math.random() * candidates.size()));
             applyMove(m, g, choice[0], choice[1]);
+        } else {
+        // Pour la ghost house 
+            g.setDx(-g.dx());
+            g.setDy(-g.dy());
+        }
     }
 
     private static void applyMove(Maze m, EntityPos e, int dx, int dy) {
@@ -337,11 +443,24 @@ public final class GameLogic {
         };
     }
 
-    private static boolean isWalk(Maze m, int x, int y) {
+    // Vérifie si une cellule est marchable
+    private static boolean isWalk(Maze m, int x, int y, boolean allowSpecial) {
         if (x < 0 || x >= m.getWidth() || y < 0 || y >= m.getHeight()) {
             return false;
         }
+
         CellState s = m.getState(x, y);
+        if (allowSpecial){
+            if (s == CellState.PORTE || s == CellState.GHOST_HOUSE) {
+                return true;
+            }
+        }
         return s == CellState.SOL || s == CellState.TUNNEL;
     }
+
+    private static boolean isWalk(Maze m, int x, int y) {
+        return isWalk(m, x, y, false);
+    }
+
 }
+
