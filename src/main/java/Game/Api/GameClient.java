@@ -6,8 +6,6 @@ import java.util.stream.Collectors;
 import com.google.gson.Gson;
 
 import Model.MazeData;
-import Game.Action;
-import Game.GameStateResponse;
 
 /**
  * Client HTTP dédié pour interagir avec l'API Pac-Man sur le Render
