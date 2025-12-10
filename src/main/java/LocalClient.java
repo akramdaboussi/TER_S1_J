@@ -37,8 +37,8 @@ public class LocalClient {
     private static int lastLives = 3;
 
     // --- Phases de jeu ---
-    private enum GamePhase { RECORDING, SIMULATION};
-    private static GamePhase currentPhase = GamePhase.RECORDING;
+    private enum GamePhase { DIRECT_PLAY, RECORDING, SIMULATION};
+    private static GamePhase currentPhase = GamePhase.DIRECT_PLAY;
 
     // --- Données du jeu ---
     private static Action desiredAction = Action.NONE;
@@ -59,7 +59,7 @@ public class LocalClient {
                     // Setuup et Lancement 
                     JFrame frame = setupDisplay(data);
                     promptAndSendRating(frame, data.ident());
-                    startRecordingPhase(frame);
+                    showMainMenu(frame);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -71,6 +71,35 @@ public class LocalClient {
         } catch (Exception e) {
             System.err.println("Erreur inattendue : " + e.getMessage());
         }
+    }
+
+    // Affiche le menu principal et gère le choix de l'utilisateur
+    private static void showMainMenu(JFrame frame) {
+        Object[] options = {"Jouer contre les Fantômes", "Enregistrer un Parcours"};
+        int n = JOptionPane.showOptionDialog(frame,
+            "Bienvenue dans Pac-Man !\nQue voulez-vous faire ?",
+            "Menu Principal",
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.QUESTION_MESSAGE,
+            null,
+            options,
+            options[0]); // Par défaut : Jouer
+
+        if (n == JOptionPane.YES_OPTION) { // Bouton "Jouer"
+            startDirectPlayPhase(frame);
+        } else if (n == JOptionPane.NO_OPTION) { // Bouton "Enregistrer"
+            startRecordingPhase(frame);
+        } else {
+            System.exit(0);
+        }
+    }
+
+    // --- Jeu direct contre les fantômes ---
+    private static void startDirectPlayPhase(JFrame frame) {
+        currentPhase = GamePhase.DIRECT_PLAY;
+        desiredAction = Action.NONE;
+        System.out.println(">>> MODE : JEU DIRECT");
+        startGame(frame);
     }
 
     // --- Phase 1 : Enregistrement des mouvements du joueur ---
@@ -144,7 +173,20 @@ public class LocalClient {
         int delay = 1000 / localGameState.cfg.tickPerSecond; 
         
         timer = new Timer(delay, ev -> {
-            if (currentPhase == GamePhase.RECORDING) {
+            if (currentPhase == GamePhase.DIRECT_PLAY) {
+                // Mise à jour de la direction souhaitée
+                localGameState.setDesiredDir(desiredAction);
+                // Mouvement du joueur et des fantômes
+                GameLogic.step(localGameState);
+                // Fin si Mort ou Victoire
+                if (localGameState.lives() <= 0) {
+                    ((Timer)ev.getSource()).stop();
+                    finishPhase(panel, () -> handleGameOver(panel, "PERDU ! Pac-Man a été mangé en " + localGameState.tick() + " coups."));
+                } else if (localGameState.levelCleared) {
+                    ((Timer)ev.getSource()).stop();
+                    finishPhase(panel, () -> handleGameOver(panel, "GAGNÉ ! Partie terminée."));
+                }
+            } else if (currentPhase == GamePhase.RECORDING) {
                 // Mise à jour de la direction souhaitée
                 localGameState.setDesiredDir(desiredAction);
                 // Mouvement du joueur seul 
@@ -158,6 +200,7 @@ public class LocalClient {
                     finishPhase(panel, () -> handleRecordingFinished(panel));
                 }
             } else {
+                // Simulation avec les fantômes
                 int tick = localGameState.tick();
                 if (tick < recordedPath.size()) {
                     // Rejoue la direction enregistrée
@@ -173,11 +216,10 @@ public class LocalClient {
                     finishPhase(panel, () -> handleSimulationFinished(panel, "Fin de la trajectoire (Survie !)"));
                     return;
                 }       
-
                 // Fin si Mort ou Victoire
                 if (localGameState.lives() <= 0) {
                     ((Timer)ev.getSource()).stop();
-                    String msg = "Pac-Man a été attrapé en " + localGameState.tick() + " coups !";
+                    String msg = "PERDU ! Pac-Man a été mangé en " + localGameState.tick() + " coups.";
                     finishPhase(panel, () -> handleSimulationFinished(panel, msg));
                 } else if (localGameState.levelCleared) {
                     ((Timer)ev.getSource()).stop();
@@ -235,6 +277,23 @@ public class LocalClient {
             localGameState.inky.pos.x(), localGameState.inky.pos.y(), localGameState.clyde.pos.x(), localGameState.clyde.pos.y(), event
         );
         simulationLog.add(line);
+    }
+
+    // Fin pour le mode "Jeu Direct"
+    private static void handleGameOver(MazeVisualizerPanel panel, String message) {
+        JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(panel);
+        Object[] options = {"Rejouer", "Retour au Menu", "Quitter"};
+        
+        int n = JOptionPane.showOptionDialog(frame, 
+            message + "\nScore final : " + localGameState.score(), 
+            "Fin de Partie", 
+            JOptionPane.YES_NO_CANCEL_OPTION, 
+            JOptionPane.INFORMATION_MESSAGE, 
+            null, options, options[0]);
+
+        if (n == 0) startDirectPlayPhase(frame);
+        else if (n == 1) showMainMenu(frame);
+        else System.exit(0);
     }
     
     // Gère la fin de l'enregistrement et affiche les options à l'utilisateur
@@ -342,7 +401,7 @@ public class LocalClient {
             @Override
             public void keyPressed(KeyEvent e) {
                 // On ne contrôle la direction que pendant l'enregistrement sans les fantômes
-                if (currentPhase == GamePhase.RECORDING){
+                if (currentPhase == GamePhase.RECORDING || currentPhase == GamePhase.DIRECT_PLAY) {
                     desiredAction = switch (e.getKeyCode()) {
                         case KeyEvent.VK_UP -> Game.Action.UP;
                         case KeyEvent.VK_DOWN -> Game.Action.DOWN;
