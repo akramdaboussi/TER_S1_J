@@ -15,10 +15,10 @@ public record GameStateResponse(
         boolean levelCleared,
         boolean isFrightened,
         Map<String, Integer> pac,       // Position de Pac-Man (x, y)
-        Map<String, Integer> blinky,    // Position du Fantôme (x, y)
-        Map<String, Integer> pinky,     // Position du deuxième Fantôme (x, y)
-        Map<String, Integer> inky,      // Position du troisième Fantôme (x, y)
-        Map<String, Integer> clyde,     // Position du quatrième Fantôme (x, y)
+        Map<String, Integer> blinky,    // Position de Blinky (x, y)
+        Map<String, Integer> pinky,     // Position de Pinky (x, y)
+        Map<String, Integer> inky,      // Position d'Inky (x, y)
+        Map<String, Integer> clyde,     // Position de Clyde (x, y)
         int pelletsRemaining,
         MazeData mazeData,              // Labyrinthe (peut être null après le start)
         boolean[][] smallPellets,       // Carte des petites pastilles

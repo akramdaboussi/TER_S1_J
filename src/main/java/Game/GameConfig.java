@@ -1,24 +1,33 @@
 package Game;
 
+/**
+ * Configuration globale du jeu.
+ * Contient les constantes d'équilibrage (vitesse, scores, délais).
+ */
 public final class GameConfig {
-  public int tickPerSecond = 8;
+
+  // Vitesse de déplacement en cellules par seconde
+  public int tickPerSecond = 7;
   public int frightenedTicks = 6 * tickPerSecond;
 
-  public int pelletScore = 10;
-  public int powerScore  = 50;
+  // Scores
+  public int pelletScore = 10; // score pour une petite pastille
+  public int powerScore  = 50; // score pour une power pellet
   public int ghostScore1 = 200; // score pour le 1er fantome mangé
 
-  public final int pinkyStartDelay = 50;
-  public final int inkyStartDelay = 100;
+  // Délais de sortie des fantômes (en ticks) (Blinky sort immédiatement)
+  public final int pinkyStartDelay = 40;
+  public final int inkyStartDelay = 80;
+  public final int clydeStartDelay = 120;
   
-  // Temps d'attente dans la maison après s'être fait manger
-  public final int respawnDelay = 50;
+  public final int respawnDelay = 50; // Temps d'attente dans la maison après s'être fait manger
 
-  public final EntityPos pacSpawn = new EntityPos(0, 16, 1, 0); 
+  // Positions de départ (Pac-Man est positionné dynamique dans Localclient)
   public final EntityPos blinkySpawn = new EntityPos(14, 14, 0, 0);
   public final EntityPos pinkySpawn = new EntityPos(16, 14, 0, 0);
   public final EntityPos inkySpawn = new EntityPos(12, 14, 0, 0);
   public final EntityPos clydeSpawn = new EntityPos(14, 16, 0, 0);
 
+  // Position de sortie de la ghost house
   public final EntityPos houseExitTarget = new EntityPos(14, 11, 0, 0);
 }
