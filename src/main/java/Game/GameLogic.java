@@ -10,10 +10,6 @@ import java.util.List;
  */
 public final class GameLogic {
 
-    // Constantes de position de la sortie de la ghost house
-    private static final int GHOST_EXIT_X = 14; 
-    private static final int GHOST_EXIT_Y = 12;
-
     // --- Boucles de jeu ---
 
     public static void step(GameState s) {
@@ -163,8 +159,10 @@ public final class GameLogic {
         }
 
         if (currentState == GhostState.EXITING) {
-            chooseDirection(m, g.pos, GHOST_EXIT_X, GHOST_EXIT_Y, true);
-            if (g.pos.x() == GHOST_EXIT_X && g.pos.y() <= GHOST_EXIT_Y) {
+            int targetX = s.cfg.houseExitTarget.x();
+            int targetY = s.cfg.houseExitTarget.y();
+            chooseDirection(m, g.pos, targetX, targetY, true);
+            if (g.pos.x() == targetX && g.pos.y() <= targetY) {
                 g.setState(GhostState.CHASE);
                 g.pos.setDx(-1); 
                 g.pos.setDy(0);

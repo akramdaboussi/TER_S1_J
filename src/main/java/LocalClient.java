@@ -47,8 +47,10 @@ public class LocalClient {
 
     public static void main(String[] args) {
         try {
+            int w = Integer.getInteger("w", 28);
+            int h = Integer.getInteger("h", 31);
             // Récupération du labyrinthe du Cloud
-            data = API_CLIENT.fetchMazeData();
+            data = API_CLIENT.fetchMazeData(w,h);
 
             // Initialisation de l'interface Swing
             SwingUtilities.invokeLater(() -> {
@@ -133,13 +135,10 @@ public class LocalClient {
         // Initialisation locale des composants de jeu
         Maze maze = new Maze(data); 
         PelletField pf = PelletPlacer.place(maze); 
-        GameConfig cfg = new GameConfig();
+        GameConfig cfg = new GameConfig(maze.getWidth(), maze.getHeight());
 
-        // Calcul dynamique du point de départ de Pac Man
-        int tunnelY = maze.getHeight() / 2;
-        if (tunnelY % 2 != 0) tunnelY++; // Assure que c'est pair pour la symétrie
-        
-        EntityPos pac = new EntityPos(0, tunnelY, 1, 0);
+        // Position de départ du Pac-Man
+        EntityPos pac = new EntityPos(cfg.pacSpawn.x(), cfg.pacSpawn.y(), cfg.pacSpawn.dx(), cfg.pacSpawn.dy());
 
         // Positions de départ des fantômes
         EntityPos blinky = new EntityPos(cfg.blinkySpawn.x(), cfg.blinkySpawn.y(), cfg.blinkySpawn.dx(), cfg.blinkySpawn.dy());

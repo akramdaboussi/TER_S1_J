@@ -22,9 +22,9 @@ public class GameClient {
     /**
      * Effectue une requête HTTP GET vers l'API Render pour récupérer un labyrinthe
      */
-    public MazeData fetchMazeData() throws IOException, URISyntaxException {
-        System.out.println("Requête à l'API Render : " + API_MAZE_URL);
-        String jsonResponse = sendGet(API_MAZE_URL);
+    public MazeData fetchMazeData(int w, int h) throws IOException, URISyntaxException {
+        System.out.println("Requête à l'API Render : " + API_MAZE_URL + "?width=" + w + "&height=" + h);
+        String jsonResponse = sendGet(API_MAZE_URL + "?width=" + w + "&height=" + h);
         return gson.fromJson(jsonResponse, MazeData.class);
     }
 
