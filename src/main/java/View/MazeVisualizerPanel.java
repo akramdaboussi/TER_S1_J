@@ -5,8 +5,13 @@ import java.awt.*;
 import java.awt.geom.Line2D;
 import java.util.Map;
 
+/**
+ * Panneau graphique principal.
+ * Gère l'affichage du labyrinthe, des entités et du HUD en style rétro.
+ */
 public class MazeVisualizerPanel extends JPanel {
-
+    
+    // Configuration Graphique 
     private final int[][] mazeGrid;
     private static final int CELL_SIZE = 24; // Taille d'une case en pixels
 
@@ -16,12 +21,13 @@ public class MazeVisualizerPanel extends JPanel {
     private static final Color COLOR_PELLET = new Color(250, 180, 180); // Rose Pâle
     private static final Color COLOR_TEXT = new Color(222, 222, 255);   // Blanc bleuté
 
-    // Données du jeu 
+    // Données du jeu (Mises à jour par LocalClient)
     private Map<String, Integer> pacPosData;
     private Map<String, Integer> blinkyPosData;
     private Map<String, Integer> pinkyPosData;
     private Map<String, Integer> inkyPosData;
     private Map<String, Integer> clydePosData;
+
     private boolean[][] smallPelletsData;
     private boolean[][] powerPelletsData;
     private boolean isFrightened = false;
@@ -31,6 +37,8 @@ public class MazeVisualizerPanel extends JPanel {
     private int currentLives = 3;
     private String currentMode = "WAITING";
 
+
+    // Initialise le panneau avec la grille statique du labyrinthe.
     public MazeVisualizerPanel(int[][] grid) {
         this.mazeGrid = grid;
         int panelWidth = grid[0].length * CELL_SIZE;
@@ -43,29 +51,37 @@ public class MazeVisualizerPanel extends JPanel {
         requestFocusInWindow();
     }
 
-    // Méthode pour mettre à jour l'état du jeu à partir des données du Cloud
+    
+    // Met à jour toutes les données d'affichage et redessine la scène.
+    // Appelée à chaque tick par le contrôleur.
     public void updateGameState(Map<String, Integer> pac, Map<String, Integer> blinky, Map<String, Integer> pinky, 
         Map<String, Integer> inky, Map<String, Integer> clyde, boolean[][] smallPellets, boolean[][] powerPellets, boolean frightened,
         int score, int lives, String mode) {
+
         this.pacPosData = pac;
         this.blinkyPosData = blinky;
         this.pinkyPosData = pinky;
         this.inkyPosData = inky;
         this.clydePosData = clyde;
+
         this.smallPelletsData = smallPellets;
         this.powerPelletsData = powerPellets;
         this.isFrightened = frightened;
+
         this.currentScore = score;
         this.currentLives = lives;
         this.currentMode = mode;
+
         repaint();
     }
 
+    // Dessin du panneau
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         Graphics2D g2d = (Graphics2D) g;
 
+        // Anti-aliasing pour un rendu plus lisse
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
 
@@ -81,21 +97,21 @@ public class MazeVisualizerPanel extends JPanel {
             drawPellets(g2d);
             drawPacman(g2d);
             drawGhosts(g2d);
-            
-            // HUD Rétro complet
             drawRetroHUD(g2d);
         }
     }
 
-    // murs creux
+    // --- Méthodes de dessin spécifiques ---
+
+    // Dessine les murs en deux passes pour créer l'effet "double trait" arcade
     private void drawArcadeWalls(Graphics2D g2d) {
         // Le contour (Gros trait bleu)
         drawMazePath(g2d, COLOR_WALL_OUTLINE, CELL_SIZE - 4);
-
         // L'intérieur (Trait moyen noir pour creuser)
         drawMazePath(g2d, COLOR_BG, CELL_SIZE - 10);
     }
 
+    // Dessine la structure des murs selon l'épaisseur donnée
     private void drawMazePath(Graphics2D g2d, Color color, float thickness) {
         int halfCell = CELL_SIZE / 2;
         g2d.setColor(color);
@@ -119,7 +135,7 @@ public class MazeVisualizerPanel extends JPanel {
     }
 
 
-    // pacman 
+    // Dessine Pac-Man
     private void drawPacman(Graphics2D g) {
         int px = pacPosData.get("x") * CELL_SIZE;
         int py = pacPosData.get("y") * CELL_SIZE;
@@ -127,7 +143,7 @@ public class MazeVisualizerPanel extends JPanel {
         g.fillOval(px + 3, py + 3, CELL_SIZE - 6, CELL_SIZE - 6);
     }
 
-    // pellets
+    // Dessine les pastilles
     private void drawPellets(Graphics2D g) {
         g.setColor(COLOR_PELLET);
         for (int y = 0; y < smallPelletsData.length; y++) {
@@ -147,14 +163,17 @@ public class MazeVisualizerPanel extends JPanel {
         }
     }
 
-    //ghosts 
+    // Dessine les fantômes
     private void drawGhosts(Graphics2D g) {
         int gx = blinkyPosData.get("x") * CELL_SIZE;
         int gy = blinkyPosData.get("y") * CELL_SIZE;
+
         int px = pinkyPosData.get("x") * CELL_SIZE;
         int py = pinkyPosData.get("y") * CELL_SIZE;
+
         int ix = inkyPosData.get("x") * CELL_SIZE;
         int iy = inkyPosData.get("y") * CELL_SIZE;
+        
         int cx = clydePosData.get("x") * CELL_SIZE;
         int cy = clydePosData.get("y") * CELL_SIZE;
 
@@ -178,7 +197,7 @@ public class MazeVisualizerPanel extends JPanel {
         g.fillOval(cx + 3, cy + 3, CELL_SIZE - 6, CELL_SIZE - 6);
     }
 
-    // HUD rétro avec score, vies, mode
+    // Affiche le HUD (Score, Vies, Mode) en bas de l'écran
     private void drawRetroHUD(Graphics2D g) {
         int yPos = getHeight() - 12;
         g.setFont(new Font("Monospaced", Font.BOLD, 16));
@@ -203,6 +222,7 @@ public class MazeVisualizerPanel extends JPanel {
         g.drawLine(0, getHeight() - 40, getWidth(), getHeight() - 40);
     }
 
+    // Vérifie si une case de la grille est un mur
     private boolean est_mur(int y, int x) {
         if (x < 0 || x >= mazeGrid[0].length || y < 0 || y >= mazeGrid.length) {
             return false;
