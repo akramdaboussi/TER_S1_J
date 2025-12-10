@@ -18,6 +18,7 @@ public final class GameConfig {
   public final EntityPos blinkySpawn = new EntityPos(14, 14, 0, 0);
   public final EntityPos pinkySpawn = new EntityPos(16, 14, 0, 0);
   public final EntityPos inkySpawn = new EntityPos(12, 14, 0, 0);
+  public final EntityPos clydeSpawn = new EntityPos(14, 16, 0, 0);
 
   public final EntityPos houseExitTarget = new EntityPos(14, 11, 0, 0);
 }

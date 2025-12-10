@@ -18,6 +18,7 @@ public record GameStateResponse(
         Map<String, Integer> blinky,    // Position du Fantôme (x, y)
         Map<String, Integer> pinky,     // Position du deuxième Fantôme (x, y)
         Map<String, Integer> inky,      // Position du troisième Fantôme (x, y)
+        Map<String, Integer> clyde,     // Position du quatrième Fantôme (x, y)
         int pelletsRemaining,
         MazeData mazeData,              // Labyrinthe (peut être null après le start)
         boolean[][] smallPellets,       // Carte des petites pastilles

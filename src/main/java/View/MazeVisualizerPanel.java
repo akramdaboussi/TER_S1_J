@@ -21,6 +21,7 @@ public class MazeVisualizerPanel extends JPanel {
     private Map<String, Integer> blinkyPosData;
     private Map<String, Integer> pinkyPosData;
     private Map<String, Integer> inkyPosData;
+    private Map<String, Integer> clydePosData;
     private boolean[][] smallPelletsData;
     private boolean[][] powerPelletsData;
     private boolean isFrightened = false;
@@ -44,12 +45,13 @@ public class MazeVisualizerPanel extends JPanel {
 
     // Méthode pour mettre à jour l'état du jeu à partir des données du Cloud
     public void updateGameState(Map<String, Integer> pac, Map<String, Integer> blinky, Map<String, Integer> pinky, 
-        Map<String, Integer> inky, boolean[][] smallPellets, boolean[][] powerPellets, boolean frightened,
+        Map<String, Integer> inky, Map<String, Integer> clyde, boolean[][] smallPellets, boolean[][] powerPellets, boolean frightened,
         int score, int lives, String mode) {
         this.pacPosData = pac;
         this.blinkyPosData = blinky;
         this.pinkyPosData = pinky;
         this.inkyPosData = inky;
+        this.clydePosData = clyde;
         this.smallPelletsData = smallPellets;
         this.powerPelletsData = powerPellets;
         this.isFrightened = frightened;
@@ -153,6 +155,8 @@ public class MazeVisualizerPanel extends JPanel {
         int py = pinkyPosData.get("y") * CELL_SIZE;
         int ix = inkyPosData.get("x") * CELL_SIZE;
         int iy = inkyPosData.get("y") * CELL_SIZE;
+        int cx = clydePosData.get("x") * CELL_SIZE;
+        int cy = clydePosData.get("y") * CELL_SIZE;
 
         // ---- Blinky (rouge ou bleu si frightened)
         g.setColor(isFrightened ? Color.BLUE : Color.RED);
@@ -167,6 +171,11 @@ public class MazeVisualizerPanel extends JPanel {
         Color inkyBlue = new Color(0, 255, 255); // cyan
         g.setColor(isFrightened ? Color.BLUE : inkyBlue);
         g.fillOval(ix + 3, iy + 3, CELL_SIZE - 6, CELL_SIZE - 6);
+
+        // ---- Clyde (orange ou bleu si frightened)
+        Color orange = new Color(255, 165, 0); // orange
+        g.setColor(isFrightened ? Color.BLUE : orange);
+        g.fillOval(cx + 3, cy + 3, CELL_SIZE - 6, CELL_SIZE - 6);
     }
 
     // HUD rétro avec score, vies, mode

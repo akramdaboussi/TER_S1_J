@@ -29,6 +29,8 @@ public final class GameLogic {
         moveGhostPinky(s);
         // Déplacement Inky 
         moveGhostInky(s);
+        // Déplacement Clyde 
+        moveGhostClyde(s);
         // Consommation pellet / power pellet
         handlePelletConsumption(s);
         // Frightened
@@ -57,6 +59,7 @@ public final class GameLogic {
         moveGhostBlinky(s);
         moveGhostPinky(s);
         moveGhostInky(s);
+        moveGhostClyde(s);
         handlePelletConsumption(s);
         handleFrightenedState(s);
         handleGhostCollision(s, false);
@@ -139,7 +142,8 @@ public final class GameLogic {
         boolean collision = 
             (s.pac.x() == s.blinky.x() && s.pac.y() == s.blinky.y()) ||
             (s.pac.x() == s.pinky.x() && s.pac.y() == s.pinky.y()) ||
-            (s.pac.x() == s.inky.x() && s.pac.y() == s.inky.y());
+            (s.pac.x() == s.inky.x() && s.pac.y() == s.inky.y()) ||
+            (s.pac.x() == s.clyde.x() && s.pac.y() == s.clyde.y());
         if (collision) {
             if (s.isFrightened()) {
                 // fantôme mangé
@@ -177,6 +181,11 @@ public final class GameLogic {
                     resetGhost(s.inky, s.cfg.inkySpawn);     
                     s.setInkyState(GhostState.IN_HOUSE);
                     s.setInkyReleaseTick(s.tick() + 40);
+
+                    resetGhost(s.clyde, s.cfg.clydeSpawn);     
+                    s.setClydeState(GhostState.IN_HOUSE);
+                    s.setClydeReleaseTick(s.tick() + 60);
+
                 }
             }
         }
@@ -203,6 +212,9 @@ public final class GameLogic {
         // Inky sort après 10 secondes
         if (s.getInkyState() == GhostState.IN_HOUSE && t > s.getInkyReleaseTick()) {
             s.setInkyState(GhostState.EXITING);
+        }
+        if (s.getClydeState() == GhostState.IN_HOUSE && t > s.getClydeReleaseTick()) {
+            s.setClydeState(GhostState.EXITING);
         }
     }
 
@@ -246,6 +258,7 @@ public final class GameLogic {
                 if (g == s.blinky) s.setBlinkyState(GhostState.CHASE);
                 else if (g == s.pinky) s.setPinkyState(GhostState.CHASE);
                 else if (g == s.inky) s.setInkyState(GhostState.CHASE);
+                else if (g == s.clyde) s.setClydeState(GhostState.CHASE);
 
                 g.setDx(-1); g.setDy(0);
             }    
@@ -277,6 +290,19 @@ public final class GameLogic {
                 int inkyTargetY = ty + vy;
                 chooseDirection(m, g, inkyTargetX, inkyTargetY);
             }
+            // Clyde 
+            else if (g == s.clyde) {
+            double dist = Math.hypot(g.x() - s.pac.x(), g.y() - s.pac.y());
+
+            if (dist >= 8) {
+                // Chase Pac-Man
+                chooseDirection(m, g, s.pac.x(), s.pac.y());
+            } else {
+                // Scatter : coin bas-gauche
+                chooseDirection(m, g, 0, m.getHeight() - 1);
+            }
+        }
+
         }
     }  
     
@@ -290,6 +316,9 @@ public final class GameLogic {
 
     private static void moveGhostInky(GameState s) {
         moveGhost(s, s.inky, s.getInkyState());
+    }
+    private static void moveGhostClyde(GameState s) {
+        moveGhost(s, s.clyde, s.getClydeState());
     }
 
     // IA blinky

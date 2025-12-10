@@ -98,7 +98,8 @@ public class LocalClient {
         EntityPos blinky = new EntityPos(cfg.blinkySpawn.x(), cfg.blinkySpawn.y(), cfg.blinkySpawn.dx(), cfg.blinkySpawn.dy());
         EntityPos pinky = new EntityPos(cfg.pinkySpawn.x(), cfg.pinkySpawn.y(), cfg.pinkySpawn.dx(), cfg.pinkySpawn.dy());
         EntityPos inky = new EntityPos(cfg.inkySpawn.x(), cfg.inkySpawn.y(), cfg.inkySpawn.dx(), cfg.inkySpawn.dy());
-        localGameState = new GameState(maze, pf, cfg, pac, blinky, pinky, inky);
+        EntityPos clyde = new EntityPos(cfg.clydeSpawn.x(), cfg.clydeSpawn.y(), cfg.clydeSpawn.dx(), cfg.clydeSpawn.dy());
+        localGameState = new GameState(maze, pf, cfg, pac, blinky, pinky, inky, clyde);
 
         // Reset trackers
         lastScore = 0;
@@ -209,7 +210,7 @@ public class LocalClient {
         String line = String.format("%d;%d;%d;%d;%d;%s", 
             localGameState.tick(), localGameState.pac.x(), localGameState.pac.y(),
             localGameState.blinky.x(), localGameState.blinky.y(), localGameState.pinky.x(), localGameState.pinky.y(),
-        localGameState.inky.x(), localGameState.inky.y(), event
+        localGameState.inky.x(), localGameState.inky.y(), localGameState.clyde.x(), localGameState.clyde.y(), event
         );
         simulationLog.add(line);
     }
@@ -354,7 +355,7 @@ public class LocalClient {
         String mode = (currentPhase == GamePhase.RECORDING) ? "REC (Joueur)" : "SIMULATION (Fantôme)";
         return new GameStateResponse(
             mode, s.tick(), s.score(), s.lives(), s.levelCleared, s.isFrightened(), 
-            pos(s.pac), pos(s.blinky), pos(s.pinky), pos(s.inky), s.pellets.remaining(), s.maze.getMazeData(), 
+            pos(s.pac), pos(s.blinky), pos(s.pinky), pos(s.inky), pos(s.clyde), s.pellets.remaining(), s.maze.getMazeData(), 
             s.pellets.getSmall(), s.pellets.getPower()
         );
     }
@@ -367,7 +368,7 @@ public class LocalClient {
      * Met à jour le panneau de visualisation avec le nouvel état du jeu
      */
     private static void updatePanel(MazeVisualizerPanel panel, GameStateResponse state) {
-        panel.updateGameState(state.pac(), state.blinky(), state.pinky(), state.inky(), state.smallPellets(), 
+        panel.updateGameState(state.pac(), state.blinky(), state.pinky(), state.inky(), state.clyde(), state.smallPellets(), 
             state.powerPellets(), state.isFrightened(), state.score(), state.lives(), state.gameId()
         );
         JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(panel);
