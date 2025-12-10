@@ -432,7 +432,11 @@ public class LocalClient {
 
     // Convertit l'état interne du jeu en un DTO de réponse pour l'affichage
     private static GameStateResponse createResponse(GameState s) {
-        String mode = (currentPhase == GamePhase.RECORDING) ? "REC (Joueur)" : "SIMULATION (Fantôme)";
+        String mode = switch(currentPhase) {
+            case DIRECT_PLAY -> "JEU (Direct)";
+            case RECORDING -> "REC (Joueur)";
+            case SIMULATION -> "REPLAY (IA)";
+        };
         return new GameStateResponse(
             mode, s.tick(), s.score(), s.lives(), s.levelCleared, s.isFrightened(), 
             pos(s.pac), pos(s.blinky.pos), pos(s.pinky.pos), pos(s.inky.pos), pos(s.clyde.pos), s.pellets.remaining(), s.maze.getMazeData(), 
