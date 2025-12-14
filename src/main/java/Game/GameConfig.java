@@ -7,7 +7,7 @@ package Game;
 public final class GameConfig {
 
   // Vitesse de déplacement en cellules par seconde
-  public int tickPerSecond = 7;
+  public int tickPerSecond = 8;
   public int frightenedTicks = 6 * tickPerSecond;
 
   // Scores

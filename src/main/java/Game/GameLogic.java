@@ -3,6 +3,7 @@ package Game;
 import Model.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.PriorityQueue;
 
 /**
  * Logique principale du jeu :
@@ -179,23 +180,26 @@ public final class GameLogic {
                     chooseDirection(m, g.pos, tx, ty);
                 }
                 case PINKY -> { // Vise 4 cases devant Pac-Man
-                    int[] target = getPinkyTarget(s);
-                    chooseDirection(m, g.pos, target[0], target[1]);
+                    /*int[] target = getPinkyTarget(s);
+                    chooseDirection(m, g.pos, target[0], target[1]);*/
+                    chooseDirection(m, g.pos, tx, ty);
                 }
                 case INKY -> { // Vise symétrique de Blinky par rapport à Pac-Man
-                    int pivotX = tx + 2 * s.pac.dx();
+                    /*int pivotX = tx + 2 * s.pac.dx();
                     int pivotY = ty + 2 * s.pac.dy();
                     int vecX = pivotX - s.blinky.pos.x();
                     int vecY = pivotY - s.blinky.pos.y();
-                    chooseDirection(m, g.pos, pivotX + vecX, pivotY + vecY);
+                    chooseDirection(m, g.pos, pivotX + vecX, pivotY + vecY);*/
+                    chooseDirection(m, g.pos, tx, ty);
                 }
                 case CLYDE -> { // Chasse si loin (>=8), sinon va en bas à gauche
-                    double dist = Math.hypot(g.pos.x() - tx, g.pos.y() - ty);
+                   /* double dist = Math.hypot(g.pos.x() - tx, g.pos.y() - ty);
                     if (dist >= 8) {
                         chooseDirection(m, g.pos, tx, ty);
                     } else {
                         chooseDirection(m, g.pos, 0, m.getHeight() - 1);
-                    }
+                    }*/
+                   chooseDirection(m, g.pos, tx, ty);
                 }
             }
         }
@@ -229,29 +233,24 @@ public final class GameLogic {
     // --- Algorithmes de déplacement ---
 
     // IA : Algorithme de recherche de chemin (Glouton : choisit la case la plus proche de la cible)
-    private static void chooseDirection(Maze m, EntityPos g, int tx, int ty, boolean allowSpecial) {
-        int[][] dirs = {{0,-1}, {-1,0}, {0,1}, {1,0}}; // Haut, Gauche, Bas, Droite
+        private static void chooseDirection(Maze m, EntityPos g, int tx, int ty, boolean allowSpecial) {
+        /*
+        int[][] dirs = {{0,-1}, {-1,0}, {0,1}, {1,0}};
         double bestDist = Double.MAX_VALUE;
         int bestDx = g.dx(), bestDy = g.dy(); 
         boolean found = false;
 
         for (int[] d : dirs) {
-            // éviter demi-tour immédiat
             if (!allowSpecial && d[0] == -g.dx() && d[1] == -g.dy()) continue;
             int nx = g.x() + d[0];
             int ny = g.y() + d[1];
 
-            // Ajout du wrap-around
-            if (nx < 0){
-                nx = m.getWidth() - 1;
-            } else if (nx >= m.getWidth()) {
-                nx = 0;
-            }
+            if (nx < 0) nx = m.getWidth() - 1;
+            else if (nx >= m.getWidth()) nx = 0;
 
             if (!isWalk(m, nx, ny, allowSpecial)) continue;
 
             double dist = Math.hypot(nx - tx, ny - ty);
-
             if (dist < bestDist) {
                 bestDist = dist;
                 bestDx = d[0];
@@ -259,20 +258,95 @@ public final class GameLogic {
                 found = true;
             }
         }
-        if (!found) {
-             if (allowSpecial) { 
-                 applyMove(m, g, 0, -1); 
-             } else {
-                 applyMove(m, g, -g.dx(), -g.dy());
-             }
-        } else {
-            applyMove(m, g, bestDx, bestDy);
+
+        if (found) applyMove(m, g, bestDx, bestDy);
+        else applyMove(m, g, -g.dx(), -g.dy());
+        return;
+        */
+
+        // A*
+
+        class Node {
+            int x, y;
+            int g, h;
+            Node parent;
+            int f() { return g + h; }
         }
+
+        int width = m.getWidth();
+        int height = m.getHeight();
+
+        boolean[][] closed = new boolean[width][height];
+
+        PriorityQueue<Node> open = new PriorityQueue<>(
+            (a, b) -> Integer.compare(a.f(), b.f())
+        );
+
+        Node start = new Node();
+        start.x = g.x();
+        start.y = g.y();
+        start.g = 0;
+        start.h = Math.abs(start.x - tx) + Math.abs(start.y - ty);
+        open.add(start);
+
+        Node target = null;
+        int[][] dirs = {{0,-1}, {-1,0}, {0,1}, {1,0}};
+
+        while (!open.isEmpty()) {
+            Node current = open.poll();
+
+            if (current.x == tx && current.y == ty) {
+                target = current;
+                break;
+            }
+
+            closed[current.x][current.y] = true;
+
+            for (int[] d : dirs) {
+                int nx = current.x + d[0];
+                int ny = current.y + d[1];
+
+                // wrap-around horizontal
+                if (nx < 0) nx = width - 1;
+                else if (nx >= width) nx = 0;
+
+                if (ny < 0 || ny >= height) continue;
+                if (!isWalk(m, nx, ny, allowSpecial)) continue;
+                if (closed[nx][ny]) continue;
+
+                Node n = new Node();
+                n.x = nx;
+                n.y = ny;
+                n.g = current.g + 1;
+                n.h = Math.abs(nx - tx) + Math.abs(ny - ty);
+                n.parent = current;
+
+                open.add(n);
+            }
+        }
+
+        // Aucun chemin trouvé → fallback
+        if (target == null || target.parent == null) {
+            applyMove(m, g, -g.dx(), -g.dy());
+            return;
+        }
+
+        // Remonter jusqu’au premier pas
+        while (target.parent != null && target.parent.parent != null) {
+            target = target.parent;
+        }
+
+        int dx = target.x - g.x();
+        int dy = target.y - g.y();
+        applyMove(m, g, dx, dy);
     }
+
 
     private static void chooseDirection(Maze m, EntityPos g, int tx, int ty) {
         chooseDirection(m, g, tx, ty, false);
     }
+
+    
 
     // Mode frightened : déplacement aléatoire
     private static void moveRandomly(Maze m, EntityPos g) {
