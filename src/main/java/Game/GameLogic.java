@@ -3,12 +3,16 @@ package Game;
 import Model.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.PriorityQueue;
 
 /**
  * Logique principale du jeu :
  * Gère les mouvements, la consommation de pastilles, les collisions, et l'IA des fantômes
  */
 public final class GameLogic {
+
+    // --- Paramètres de l'IA des fantômes ---
+    public static boolean GHOST_A_STAR = true;
 
     // --- Boucles de jeu ---
 
@@ -161,7 +165,7 @@ public final class GameLogic {
         if (currentState == GhostState.EXITING) {
             int targetX = s.cfg.houseExitTarget.x();
             int targetY = s.cfg.houseExitTarget.y();
-            chooseDirection(m, g.pos, targetX, targetY, true);
+            chooseDirectionAStar(m, g.pos, targetX, targetY, true);
             if (g.pos.x() == targetX && g.pos.y() <= targetY) {
                 g.setState(GhostState.CHASE);
                 g.pos.setDx(-1); 
@@ -174,29 +178,42 @@ public final class GameLogic {
             int tx = s.pac.x();
             int ty = s.pac.y();
 
-            switch (g.type) {
-                case BLINKY -> { // Vise Pac-Man directement
-                    chooseDirection(m, g.pos, tx, ty);
-                }
-                case PINKY -> { // Vise 4 cases devant Pac-Man
+            if (GHOST_A_STAR) {
+                chooseDirectionAStar(m, g.pos, tx, ty);
+            } else {
+                int targetX = tx;
+                int targetY = ty;
+
+                switch (g.type) {
+                    case BLINKY -> { 
+                        targetX = tx; 
+                        targetY = ty; 
+                    }
+                    case PINKY -> { // Vise 4 cases devant Pac-Man
                     int[] target = getPinkyTarget(s);
-                    chooseDirection(m, g.pos, target[0], target[1]);
-                }
-                case INKY -> { // Vise symétrique de Blinky par rapport à Pac-Man
-                    int pivotX = tx + 2 * s.pac.dx();
-                    int pivotY = ty + 2 * s.pac.dy();
-                    int vecX = pivotX - s.blinky.pos.x();
-                    int vecY = pivotY - s.blinky.pos.y();
-                    chooseDirection(m, g.pos, pivotX + vecX, pivotY + vecY);
-                }
-                case CLYDE -> { // Chasse si loin (>=8), sinon va en bas à gauche
-                    double dist = Math.hypot(g.pos.x() - tx, g.pos.y() - ty);
-                    if (dist >= 8) {
-                        chooseDirection(m, g.pos, tx, ty);
-                    } else {
-                        chooseDirection(m, g.pos, 0, m.getHeight() - 1);
+                    targetX = target[0];
+                    targetY = target[1];
+                    }
+                    case INKY -> { // Vise symétrique de Blinky par rapport à Pac-Man
+                        int pivotX = tx + 2 * s.pac.dx();
+                        int pivotY = ty + 2 * s.pac.dy();
+                        int vecX = pivotX - s.blinky.pos.x();
+                        int vecY = pivotY - s.blinky.pos.y();
+                        targetX = pivotX + vecX;
+                        targetY = pivotY + vecY;
+                    }
+                    case CLYDE -> { // Chasse si loin (>=8), sinon va en bas à gauche
+                        double dist = Math.hypot(g.pos.x() - tx, g.pos.y() - ty);
+                        if (dist >= 8) {
+                            targetX = tx;
+                            targetY = ty;
+                        } else {
+                            targetX = 0;
+                            targetY = m.getHeight() - 1;
+                        }
                     }
                 }
+                chooseDirection(m, g.pos, targetX, targetY);
             }
         }
     }
@@ -272,6 +289,140 @@ public final class GameLogic {
 
     private static void chooseDirection(Maze m, EntityPos g, int tx, int ty) {
         chooseDirection(m, g, tx, ty, false);
+    }
+
+    // IA : Algorithme A* pour un chemin optimal vers la cible
+    private static void chooseDirectionAStar(Maze m, EntityPos g, int rawTx, int rawTy, boolean allowSpecial) {
+        Point safeTarget = findNearestWalkable(m, rawTx, rawTy);
+        int tx = safeTarget.x();
+        int ty = safeTarget.y();
+
+        class Node {
+            int x, y;
+            int g, h;
+            Node parent;
+            int f() { return g + h; }
+        }
+
+        int width = m.getWidth();
+        int height = m.getHeight();
+
+        boolean[][] closed = new boolean[width][height];
+
+        PriorityQueue<Node> open = new PriorityQueue<>(
+            (a, b) -> Integer.compare(a.f(), b.f())
+        );
+
+        Node start = new Node();
+        start.x = g.x();
+        start.y = g.y();
+        start.g = 0;
+        start.h = Math.abs(start.x - tx) + Math.abs(start.y - ty);
+        open.add(start);
+
+        Node target = null;
+        int[][] dirs = {{0,-1}, {-1,0}, {0,1}, {1,0}};
+
+        while (!open.isEmpty()) {
+            Node current = open.poll();
+
+            if (current.x == tx && current.y == ty) {
+                target = current;
+                break;
+            }
+
+            closed[current.x][current.y] = true;
+
+            for (int[] d : dirs) {
+                if (current.parent == null) {
+                    // Pas de demi-tour possible au premier pas
+                    if (d[0] == -g.dx() && d[1] == -g.dy()) {
+                        continue; 
+                    }
+                }
+
+                int nx = current.x + d[0];
+                int ny = current.y + d[1];
+
+                // wrap-around horizontal
+                if (nx < 0) nx = width - 1;
+                else if (nx >= width) nx = 0;
+
+                if (ny < 0 || ny >= height) continue;
+                if (!isWalk(m, nx, ny, allowSpecial)) continue;
+                if (closed[nx][ny]) continue;
+
+                Node n = new Node();
+                n.x = nx;
+                n.y = ny;
+                n.g = current.g + 1;
+                n.h = Math.abs(nx - tx) + Math.abs(ny - ty);
+                n.parent = current;
+
+                open.add(n);
+            }
+        }
+
+        if (target== null) {
+            // On cherche n'importe quel voisin valide qui n'est PAS un demi-tour
+            for(int[] d : dirs) {
+                // Si c'est un demi-tour, on ignore
+                if (d[0] == -g.dx() && d[1] == -g.dy()) continue; 
+                
+                int nx = g.x() + d[0];
+                int ny = g.y() + d[1];
+                // Wrap around pour le fallback aussi
+                if (nx < 0) nx = width - 1; else if (nx >= width) nx = 0;
+
+                if (ny >= 0 && ny < height && isWalk(m, nx, ny, allowSpecial)) {
+                    applyMove(m, g, d[0], d[1]);
+                    return; // On a trouvé une issue de secours
+                }
+            }
+
+            // Aucun chemin trouvé → fallback
+            if (target == null || target.parent == null) {
+                applyMove(m, g, -g.dx(), -g.dy());
+                return;
+            }
+        }
+
+        // Remonter jusqu’au premier pas
+        while (target.parent != null && target.parent.parent != null) {
+            target = target.parent;
+        }
+
+        int dx = target.x - g.x();
+        int dy = target.y - g.y();
+        if (Math.abs(dx) > 1) dx = (dx > 0) ? -1 : 1;
+        applyMove(m, g, dx, dy);
+    }
+
+    private static void chooseDirectionAStar(Maze m, EntityPos g, int tx, int ty) {
+        chooseDirectionAStar(m, g, tx, ty, false);
+    }
+
+    // Trouve la case marchable la plus proche de la cible donnée
+    private static Point findNearestWalkable(Maze m, int tx, int ty) {
+        // Clamp bounds
+        if (tx < 0) tx = 0; if (tx >= m.getWidth()) tx = m.getWidth()-1;
+        if (ty < 0) ty = 0; if (ty >= m.getHeight()) ty = m.getHeight()-1;
+
+        if (isWalk(m, tx, ty)) return new Point(tx, ty);
+
+        // Recherche spirale simple pour trouver un voisin libre
+        for (int r = 1; r < 6; r++) { // Rayon de recherche étendu
+             for (int dx = -r; dx <= r; dx++) {
+                 for (int dy = -r; dy <= r; dy++) {
+                     int nx = tx + dx;
+                     int ny = ty + dy;
+                     if (nx >= 0 && nx < m.getWidth() && ny >= 0 && ny < m.getHeight()) {
+                         if (isWalk(m, nx, ny)) return new Point(nx, ny);
+                     }
+                 }
+             }
+        }
+        return new Point(tx, ty);
     }
 
     // Mode frightened : déplacement aléatoire
