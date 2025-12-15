@@ -5,6 +5,17 @@ public final class PelletField {
   final boolean[][] power; // power pellet
 
   public PelletField(int w, int h){ small=new boolean[h][w]; power=new boolean[h][w]; }
+
+  // Crée une copie du PelletField
+  public PelletField copy() {
+    PelletField newField = new PelletField(small[0].length, small.length);
+    for(int y=0; y<small.length; y++) {
+        System.arraycopy(this.small[y], 0, newField.small[y], 0, this.small[y].length);
+        System.arraycopy(this.power[y], 0, newField.power[y], 0, this.power[y].length);
+    }
+    return newField;
+  }
+
   public boolean hasSmall(int x,int y){ return small[y][x]; }
   public boolean hasPower(int x,int y){ return power[y][x]; }
 

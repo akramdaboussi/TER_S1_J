@@ -65,6 +65,35 @@ public final class GameState {
         this.ghosts.add(clyde);
     }
 
+    public GameState copy() {
+    EntityPos newPac = this.pac.copy();
+    
+    // On recrée l'état global
+    GameState newState = new GameState(
+        this.maze, // Le Maze est immuable, pas besoin de copie
+        this.pellets.copy(),
+        this.cfg,
+        newPac,
+        this.blinky.spawnPos, this.pinky.spawnPos, this.inky.spawnPos, this.clyde.spawnPos
+    );
+
+    // On synchronise l'état précis des fantômes
+    newState.blinky.pos = this.blinky.pos.copy(); newState.blinky.setState(this.blinky.getState());
+    newState.pinky.pos = this.pinky.pos.copy(); newState.pinky.setState(this.pinky.getState());
+    newState.inky.pos = this.inky.pos.copy(); newState.inky.setState(this.inky.getState());
+    newState.clyde.pos = this.clyde.pos.copy(); newState.clyde.setState(this.clyde.getState());
+    
+    // Copie des variables de jeu
+    newState.setTick(this.tick());
+    newState.setScore(this.score());
+    newState.setLives(this.lives());
+    newState.levelCleared = this.levelCleared;
+    newState.setFrightened(this.isFrightened());
+    newState.setFrightenedEndTick(this.getFrightenedEndTick());
+    
+    return newState;
+}
+
     // Getters & Setters
     
     public int tick() { return tick; }

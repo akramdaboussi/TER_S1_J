@@ -10,7 +10,7 @@ public class Ghost {
     public enum Type { BLINKY, PINKY, INKY, CLYDE }
 
     public final Type type;
-    public final EntityPos pos; // Position actuelle
+    public EntityPos pos; // Position actuelle
     public final EntityPos spawnPos; // Point de départ 
     
     private GhostState state; // État courant du fantôme
@@ -25,6 +25,14 @@ public class Ghost {
         this.releaseTick = releaseTick;
         this.state = GhostState.IN_HOUSE;
     }
+
+    // Crée une copie du fantôme
+    public Ghost copy() {
+    Ghost newGhost = new Ghost(this.type, this.spawnPos, this.releaseTick); 
+    newGhost.pos = this.pos.copy();
+    newGhost.setState(this.getState());
+    return newGhost;
+}
 
     // Réinitialise le fantôme à sa position de départ 
     public void reset() {
