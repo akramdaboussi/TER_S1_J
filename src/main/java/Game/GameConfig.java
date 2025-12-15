@@ -7,7 +7,7 @@ package Game;
 public final class GameConfig {
 
   // Vitesse de déplacement en cellules par seconde
-  public int tickPerSecond = 8;
+  public int tickPerSecond = 7;
   public int frightenedTicks = 6 * tickPerSecond;
 
   // Scores
@@ -45,7 +45,7 @@ public final class GameConfig {
     this.pacSpawn = new EntityPos(1, tunnelY, 1, 0);
 
     // Initialisation des positions des fantômes
-    this.blinkySpawn = new EntityPos(centerX, centerY - 1, 0, 0);
+    this.blinkySpawn = new EntityPos(centerX - 1, centerY - 1, 0, 0);
     this.pinkySpawn = new EntityPos(centerX, centerY + 1, 0, 0);
     this.inkySpawn = new EntityPos(centerX - 2, centerY - 1, 0, 0);
     this.clydeSpawn = new EntityPos(centerX + 2, centerY - 1, 0, 0);
