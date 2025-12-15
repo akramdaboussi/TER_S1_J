@@ -31,14 +31,19 @@ public class LocalClient {
     private static Timer timer = null;
     private static MazeData data = null;
     private static final GameClient API_CLIENT = new GameClient();
+    private static final PacmanAI bot = new PacmanAI();
 
     // --- Suivi du score et des vies pour les logs ---
     private static int lastScore = 0;
     private static int lastLives = 3;
 
     // --- Phases de jeu ---
-    private enum GamePhase { DIRECT_PLAY, RECORDING, SIMULATION};
+    private enum GamePhase { DIRECT_PLAY, RECORDING, SIMULATION, AI_PLAY};
     private static GamePhase currentPhase = GamePhase.DIRECT_PLAY;
+
+    // Pour l'affichage et le restart
+    private static PacmanAI.Strategy currentAIStrategy = PacmanAI.Strategy.EXPECTIMAX;
+    private static boolean currentGhostAStar = false;
 
     // --- Données du jeu ---
     private static Action desiredAction = Action.NONE;
@@ -77,30 +82,49 @@ public class LocalClient {
 
     // Affiche le menu principal et gère le choix de l'utilisateur
     private static void showMainMenu(JFrame frame) {
-        Object[] options = {"Jouer contre les Fantômes", "Enregistrer un Parcours"};
+        Object[] options = {"Jouer (Manuel)", "Enregistrer un Parcours", "IA vs IA"};
         int n = JOptionPane.showOptionDialog(frame,
             "Bienvenue dans Pac-Man !\nQue voulez-vous faire ?",
             "Menu Principal",
-            JOptionPane.YES_NO_OPTION,
+            JOptionPane.YES_NO_CANCEL_OPTION,
             JOptionPane.QUESTION_MESSAGE,
             null,
             options,
             options[0]); // Par défaut : Jouer
 
-        if (n == JOptionPane.YES_OPTION) { // Bouton "Jouer"
-            startDirectPlayPhase(frame);
-        } else if (n == JOptionPane.NO_OPTION) { // Bouton "Enregistrer"
-            startRecordingPhase(frame);
-        } else {
-            System.exit(0);
+        if (n == 0){
+            boolean useAStar = askGhostDifficulty(frame);
+            startDirectPlayPhase(frame, useAStar);    
         }
+        else if (n == 1) startRecordingPhase(frame);
+        else if (n == 2){
+            boolean useAStar = askGhostDifficulty(frame);
+            PacmanAI.Strategy strategy = useAStar ? PacmanAI.Strategy.MINIMAX : PacmanAI.Strategy.EXPECTIMAX;
+            startAIPhase(frame, strategy);
+        } else System.exit(0);
+    }
+
+    // --- Demande le type d'IA des fantômes ---
+    private static boolean askGhostDifficulty(JFrame frame) {
+        Object[] options = {"Gloutons", "A*"};
+        int n = JOptionPane.showOptionDialog(frame,
+            "Choisissez l'intelligence des fantômes :",
+            "Difficulté",
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.QUESTION_MESSAGE,
+            null,
+            options,
+            options[0]);
+        return (n == 1); // Retourne true si A* choisi
     }
 
     // --- Jeu direct contre les fantômes ---
-    private static void startDirectPlayPhase(JFrame frame) {
+    private static void startDirectPlayPhase(JFrame frame, boolean userAStar) {
         currentPhase = GamePhase.DIRECT_PLAY;
+        currentGhostAStar = userAStar;
+        GameLogic.GHOST_A_STAR = userAStar;
         desiredAction = Action.NONE;
-        System.out.println(">>> MODE : JEU DIRECT");
+        System.out.println(">>> MODE : JEU DIRECT (Fantomes " + (userAStar ? "A*" : "Gloutons") + ")");
         startGame(frame);
     }
 
@@ -115,14 +139,35 @@ public class LocalClient {
     }
 
     // --- Phase 2 : Simulation (l'ordi rejoue avec les fantômes) ---
-    private static void startSimulationPhase(JFrame frame) {
+    private static void startSimulationPhase(JFrame frame, boolean useAStar) {
         currentPhase = GamePhase.SIMULATION;
+        currentGhostAStar = useAStar;
+        GameLogic.GHOST_A_STAR = useAStar;
         simulationLog.clear();
         
         // En-tête du fichier
         simulationLog.add("TICK;PAC_X;PAC_Y;BLINKY_X;BLINKY_Y;PINKY_X;PINKY_Y;INKY_X;INKY_Y;CLYDE_X;CLYDE_Y;EVENT");
 
-        System.out.println(">>> DÉBUT PHASE 2 : SIMULATION (Fantôme)");
+        System.out.println(">>> DÉBUT PHASE 2 : SIMULATION (Fantomes " + (useAStar ? "A*" : "Gloutons") + ")");
+        startGame(frame);
+    }
+
+    // --- Phase 3 : IA joue à la place du joueur ---
+    private static void startAIPhase(JFrame frame, PacmanAI.Strategy strategy) {
+        currentPhase = GamePhase.AI_PLAY;
+        currentAIStrategy = strategy;
+        bot.setStrategy(strategy);
+
+        if (strategy == PacmanAI.Strategy.MINIMAX) {
+            GameLogic.GHOST_A_STAR = true;
+            currentGhostAStar = true;
+        } else {
+            GameLogic.GHOST_A_STAR = false;
+            currentGhostAStar = false;
+        }
+
+        desiredAction = Action.NONE;
+        System.out.println(">>> MODE : IA AUTO (" + strategy + ")");
         startGame(frame);
     }
 
@@ -184,6 +229,19 @@ public class LocalClient {
                 } else if (localGameState.levelCleared) {
                     ((Timer)ev.getSource()).stop();
                     finishPhase(panel, () -> handleGameOver(panel, "GAGNÉ ! Partie terminée."));
+                }
+            } else if (currentPhase == GamePhase.AI_PLAY) {
+                // L'IA choisit la meilleure action
+                Action best = bot.getBestAction(localGameState);
+
+                localGameState.setDesiredDir(best);
+                GameLogic.step(localGameState);
+                if (localGameState.lives() <= 0) {
+                    ((Timer)ev.getSource()).stop();
+                    finishPhase(panel, () -> handleIAGameOver(panel, "L'IA a perdu...", currentAIStrategy));
+                } else if (localGameState.levelCleared) {
+                    ((Timer)ev.getSource()).stop();
+                    finishPhase(panel, () -> handleIAGameOver(panel, "L'IA a gagné le niveau !", currentAIStrategy));
                 }
             } else if (currentPhase == GamePhase.RECORDING) {
                 // Mise à jour de la direction souhaitée
@@ -270,7 +328,7 @@ public class LocalClient {
         lastScore = currentScore;
         lastLives = currentLives;
 
-        String line = String.format("%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%s", 
+        String line = String.format("%d; %d; %d; %d; %d; %d; %d; %d; %d; %d; %d; %s", 
             localGameState.tick(), localGameState.pac.x(), localGameState.pac.y(),
             localGameState.blinky.pos.x(), localGameState.blinky.pos.y(), localGameState.pinky.pos.x(), localGameState.pinky.pos.y(),
             localGameState.inky.pos.x(), localGameState.inky.pos.y(), localGameState.clyde.pos.x(), localGameState.clyde.pos.y(), event
@@ -281,7 +339,7 @@ public class LocalClient {
     // Fin pour le mode "Jeu Direct"
     private static void handleGameOver(MazeVisualizerPanel panel, String message) {
         JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(panel);
-        Object[] options = {"Rejouer", "Retour au Menu", "Quitter"};
+        Object[] options = {"Rejouer (Même IA)","Changer IA", "Retour au Menu", "Quitter"};
         
         int n = JOptionPane.showOptionDialog(frame, 
             message + "\nScore final : " + localGameState.score(), 
@@ -290,8 +348,33 @@ public class LocalClient {
             JOptionPane.INFORMATION_MESSAGE, 
             null, options, options[0]);
 
-        if (n == 0) startDirectPlayPhase(frame);
-        else if (n == 1) showMainMenu(frame);
+        if (n == 0) startDirectPlayPhase(frame, currentGhostAStar);
+        else if (n == 1) {
+            boolean useAStar = askGhostDifficulty(frame);
+            startDirectPlayPhase(frame, useAStar);
+        }
+        else if (n == 2) showMainMenu(frame);
+        else System.exit(0);
+    }
+
+    // Fin pour le mode "Jeu Direct"
+    private static void handleIAGameOver(MazeVisualizerPanel panel, String message, PacmanAI.Strategy strategy) {
+        JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(panel);
+        Object[] options = {"Rejouer (Même IA)", "Changer IA", "Retour au Menu", "Quitter"};
+        
+        int n = JOptionPane.showOptionDialog(frame, 
+            message + "\nScore final : " + localGameState.score(), 
+            "Fin de Partie IA", 
+            JOptionPane.YES_NO_CANCEL_OPTION, 
+            JOptionPane.INFORMATION_MESSAGE, 
+            null, options, options[0]);
+
+        if (n == 0) startAIPhase(frame, strategy);
+        else if (n == 1) {
+            boolean useAStar = askGhostDifficulty(frame);
+            PacmanAI.Strategy newStrategy = useAStar ? PacmanAI.Strategy.MINIMAX : PacmanAI.Strategy.EXPECTIMAX;
+            startAIPhase(frame, newStrategy);
+        } else if (n == 2) showMainMenu(frame);
         else System.exit(0);
     }
     
@@ -309,7 +392,9 @@ public class LocalClient {
             JOptionPane.YES_NO_OPTION
         );
         if (n == JOptionPane.YES_OPTION) {
-            startSimulationPhase(frame);
+            // On demande la difficulté des fantômes
+            boolean useAStar = askGhostDifficulty(frame);
+            startSimulationPhase(frame, useAStar);
         } else {
             System.exit(0);
         }
@@ -321,7 +406,7 @@ public class LocalClient {
         System.out.println("Rapport de simulation généré.");
         
         JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(panel);
-        Object[] options = {"Nouvelle Trajectoire", "Quitter"};
+        Object[] options = {"Rejouer Simulation", "Nouvelle Trajectoire","Retour au Menu", "Quitter"};
         
         int n = JOptionPane.showOptionDialog(frame,
             message + "\n\nRésultat sauvegardé dans : " + OUTPUT_FILE + "\nQue faire ?",
@@ -332,8 +417,13 @@ public class LocalClient {
             options,
             options[0]);
 
-        if (n == JOptionPane.YES_OPTION) {
+        if (n == 0) {
+            boolean useAStar = askGhostDifficulty(frame);
+            startSimulationPhase(frame, useAStar);
+        } else if (n == 1) {
             startRecordingPhase(frame);
+        } else if (n == 2) {
+            showMainMenu(frame);
         } else {
             System.exit(0);
         }
@@ -435,6 +525,7 @@ public class LocalClient {
             case DIRECT_PLAY -> "JEU (Direct)";
             case RECORDING -> "REC (Joueur)";
             case SIMULATION -> "REPLAY (IA)";
+            case AI_PLAY -> "IA (" + currentAIStrategy + ")";
         };
         return new GameStateResponse(
             mode, s.tick(), s.score(), s.lives(), s.levelCleared, s.isFrightened(), 
