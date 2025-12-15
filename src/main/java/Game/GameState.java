@@ -45,17 +45,18 @@ public final class GameState {
      * Initialise une nouvelle partie avec les positions de départ.
      */
     public GameState(Maze maze, PelletField pellets, GameConfig cfg,
-                     EntityPos pacStart, EntityPos blinkyStart, EntityPos pinkyStart, EntityPos inkyStart, EntityPos clydeStart) {
+                     EntityPos pacStart, EntityPos blinkyStart, EntityPos pinkyStart,
+                     EntityPos inkyStart, EntityPos clydeStart, boolean[] ghostAStarConfig) {
         this.maze = maze;
         this.pellets = pellets;
         this.cfg = cfg;
         this.pac = pacStart;
 
         // Instanciation des fantômes avec leurs délais de sortie respectifs
-        this.blinky = new Ghost(Ghost.Type.BLINKY, blinkyStart, 0);
-        this.pinky = new Ghost(Ghost.Type.PINKY, pinkyStart, cfg.pinkyStartDelay);
-        this.inky = new Ghost(Ghost.Type.INKY, inkyStart, cfg.inkyStartDelay);
-        this.clyde = new Ghost(Ghost.Type.CLYDE, clydeStart, cfg.clydeStartDelay);
+        this.blinky = new Ghost(Ghost.Type.BLINKY, blinkyStart, 0, ghostAStarConfig[0]);
+        this.pinky = new Ghost(Ghost.Type.PINKY, pinkyStart, cfg.pinkyStartDelay, ghostAStarConfig[1]);
+        this.inky = new Ghost(Ghost.Type.INKY, inkyStart, cfg.inkyStartDelay, ghostAStarConfig[2]);
+        this.clyde = new Ghost(Ghost.Type.CLYDE, clydeStart, cfg.clydeStartDelay, ghostAStarConfig[3]);
         
         // Création de la liste
         this.ghosts = new ArrayList<>();
@@ -66,33 +67,36 @@ public final class GameState {
     }
 
     public GameState copy() {
-    EntityPos newPac = this.pac.copy();
-    
-    // On recrée l'état global
-    GameState newState = new GameState(
-        this.maze, // Le Maze est immuable, pas besoin de copie
-        this.pellets.copy(),
-        this.cfg,
-        newPac,
-        this.blinky.spawnPos, this.pinky.spawnPos, this.inky.spawnPos, this.clyde.spawnPos
-    );
+        EntityPos newPac = this.pac.copy();
 
-    // On synchronise l'état précis des fantômes
-    newState.blinky.pos = this.blinky.pos.copy(); newState.blinky.setState(this.blinky.getState());
-    newState.pinky.pos = this.pinky.pos.copy(); newState.pinky.setState(this.pinky.getState());
-    newState.inky.pos = this.inky.pos.copy(); newState.inky.setState(this.inky.getState());
-    newState.clyde.pos = this.clyde.pos.copy(); newState.clyde.setState(this.clyde.getState());
+        boolean[] configs = {this.blinky.useAStar, this.pinky.useAStar, this.inky.useAStar, this.clyde.useAStar};
     
-    // Copie des variables de jeu
-    newState.setTick(this.tick());
-    newState.setScore(this.score());
-    newState.setLives(this.lives());
-    newState.levelCleared = this.levelCleared;
-    newState.setFrightened(this.isFrightened());
-    newState.setFrightenedEndTick(this.getFrightenedEndTick());
+        // On recrée l'état global
+        GameState newState = new GameState(
+            this.maze, // Le Maze est immuable, pas besoin de copie
+            this.pellets.copy(),
+            this.cfg,
+            newPac,
+            this.blinky.spawnPos, this.pinky.spawnPos, this.inky.spawnPos, this.clyde.spawnPos,
+            configs
+        );
+
+        // On synchronise l'état précis des fantômes
+        newState.blinky.pos = this.blinky.pos.copy(); newState.blinky.setState(this.blinky.getState());
+        newState.pinky.pos = this.pinky.pos.copy(); newState.pinky.setState(this.pinky.getState());
+        newState.inky.pos = this.inky.pos.copy(); newState.inky.setState(this.inky.getState());
+        newState.clyde.pos = this.clyde.pos.copy(); newState.clyde.setState(this.clyde.getState());
     
-    return newState;
-}
+        // Copie des variables de jeu
+        newState.setTick(this.tick());
+        newState.setScore(this.score());
+        newState.setLives(this.lives());
+        newState.levelCleared = this.levelCleared;
+        newState.setFrightened(this.isFrightened());
+        newState.setFrightenedEndTick(this.getFrightenedEndTick());
+    
+        return newState;
+    }
 
     // Getters & Setters
     

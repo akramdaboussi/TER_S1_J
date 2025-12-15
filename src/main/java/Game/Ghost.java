@@ -16,19 +16,22 @@ public class Ghost {
     private GhostState state; // État courant du fantôme
     private int releaseTick; // Moment où il sort de la maison
 
+    public final boolean useAStar;
+
     // Crée un nouveau fantôme
-    public Ghost(Type type, EntityPos startPos, int releaseTick) {
+    public Ghost(Type type, EntityPos startPos, int releaseTick, boolean useAStar) {
         this.type = type;
         // Copie de la position de départ
         this.spawnPos = new EntityPos(startPos.x(), startPos.y(), startPos.dx(), startPos.dy());
         this.pos = startPos; 
         this.releaseTick = releaseTick;
         this.state = GhostState.IN_HOUSE;
+        this.useAStar = useAStar;
     }
 
     // Crée une copie du fantôme
     public Ghost copy() {
-    Ghost newGhost = new Ghost(this.type, this.spawnPos, this.releaseTick); 
+    Ghost newGhost = new Ghost(this.type, this.spawnPos, this.releaseTick, this.useAStar); 
     newGhost.pos = this.pos.copy();
     newGhost.setState(this.getState());
     return newGhost;

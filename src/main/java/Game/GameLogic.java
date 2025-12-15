@@ -178,7 +178,7 @@ public final class GameLogic {
             int tx = s.pac.x();
             int ty = s.pac.y();
 
-            if (GHOST_A_STAR) {
+            if (g.useAStar) {
                 chooseDirectionAStar(m, g.pos, tx, ty);
             } else {
                 int targetX = tx;

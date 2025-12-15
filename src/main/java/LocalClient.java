@@ -9,7 +9,7 @@ import java.util.Map;
 import javax.swing.*;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
-
+import java.awt.*;
 import Model.MazeData; 
 import View.MazeVisualizerPanel; 
 import Game.Action;
@@ -41,9 +41,11 @@ public class LocalClient {
     private enum GamePhase { DIRECT_PLAY, RECORDING, SIMULATION, AI_PLAY};
     private static GamePhase currentPhase = GamePhase.DIRECT_PLAY;
 
-    // Pour l'affichage et le restart
+    // --- Pour l'affichage et le restart ---
     private static PacmanAI.Strategy currentAIStrategy = PacmanAI.Strategy.EXPECTIMAX;
-    private static boolean currentGhostAStar = false;
+    
+    // --- Configuration des fantômes ---
+    private static boolean[] currentGhostConfig = new boolean[]{false, false, false, false};
 
     // --- Données du jeu ---
     private static Action desiredAction = Action.NONE;
@@ -93,38 +95,74 @@ public class LocalClient {
             options[0]); // Par défaut : Jouer
 
         if (n == 0){
-            boolean useAStar = askGhostDifficulty(frame);
-            startDirectPlayPhase(frame, useAStar);    
+            boolean[] config = askGhostConfiguration(frame);
+            startDirectPlayPhase(frame, config);    
         }
         else if (n == 1) startRecordingPhase(frame);
         else if (n == 2){
-            boolean useAStar = askGhostDifficulty(frame);
-            PacmanAI.Strategy strategy = useAStar ? PacmanAI.Strategy.MINIMAX : PacmanAI.Strategy.EXPECTIMAX;
-            startAIPhase(frame, strategy);
+            boolean[] ghostConfig = askGhostConfiguration(frame);
+            int countAStar = 0;
+            for(boolean b : ghostConfig) if(b) countAStar++;
+            PacmanAI.Strategy strategy;
+            if (countAStar >= 2) strategy = PacmanAI.Strategy.MINIMAX;
+            else strategy = PacmanAI.Strategy.EXPECTIMAX;
+            startAIPhase(frame, strategy, ghostConfig);
         } else System.exit(0);
     }
 
-    // --- Demande le type d'IA des fantômes ---
-    private static boolean askGhostDifficulty(JFrame frame) {
-        Object[] options = {"Gloutons", "A*"};
-        int n = JOptionPane.showOptionDialog(frame,
-            "Choisissez l'intelligence des fantômes :",
-            "Difficulté",
-            JOptionPane.YES_NO_OPTION,
-            JOptionPane.QUESTION_MESSAGE,
-            null,
-            options,
-            options[0]);
-        return (n == 1); // Retourne true si A* choisi
+    private static boolean[] askGhostConfiguration(JFrame frame) {
+    JPanel pBlinky = new JPanel(new FlowLayout(FlowLayout.LEFT));
+    JPanel pPinky = new JPanel(new FlowLayout(FlowLayout.LEFT));
+    JPanel pInky = new JPanel(new FlowLayout(FlowLayout.LEFT));
+    JPanel pClyde = new JPanel(new FlowLayout(FlowLayout.LEFT));
+
+    // Création des boutons
+    JRadioButton rbBlinkyA = new JRadioButton("A*", true);
+    JRadioButton rbBlinkyG = new JRadioButton("Glouton");
+    
+    JRadioButton rbPinkyA = new JRadioButton("A*", true);
+    JRadioButton rbPinkyG = new JRadioButton("Glouton");
+    
+    JRadioButton rbInkyA = new JRadioButton("A*", true);
+    JRadioButton rbInkyG = new JRadioButton("Glouton");
+    
+    JRadioButton rbClydeA = new JRadioButton("A*", true);
+    JRadioButton rbClydeG = new JRadioButton("Glouton");
+
+    // Groupement des boutons
+    ButtonGroup gBlinky = new ButtonGroup(); gBlinky.add(rbBlinkyA); gBlinky.add(rbBlinkyG);
+    ButtonGroup gPinky = new ButtonGroup(); gPinky.add(rbPinkyA); gPinky.add(rbPinkyG);
+    ButtonGroup gInky = new ButtonGroup(); gInky.add(rbInkyA); gInky.add(rbInkyG);
+    ButtonGroup gClyde = new ButtonGroup(); gClyde.add(rbClydeA); gClyde.add(rbClydeG);
+
+    // Assemblage visuel
+    pBlinky.add(new JLabel("Blinky : ")); pBlinky.add(rbBlinkyA); pBlinky.add(rbBlinkyG);
+    pPinky.add(new JLabel("Pinky  : ")); pPinky.add(rbPinkyA); pPinky.add(rbPinkyG);
+    pInky.add(new JLabel("Inky   : ")); pInky.add(rbInkyA); pInky.add(rbInkyG);
+    pClyde.add(new JLabel("Clyde  : ")); pClyde.add(rbClydeA); pClyde.add(rbClydeG);
+
+    Object[] message = {
+        "Configurez l'intelligence de chaque fantôme :",
+        " ", 
+        pBlinky, pPinky, pInky, pClyde
+    };
+
+    int option = JOptionPane.showConfirmDialog(frame, message, "Configuration IA Fantômes", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+    
+    if (option == JOptionPane.OK_OPTION) {
+        return new boolean[]{ 
+            rbBlinkyA.isSelected(), rbPinkyA.isSelected(), rbInkyA.isSelected(), rbClydeA.isSelected() 
+        };
     }
+    return new boolean[]{false, false, false, false}; 
+}
 
     // --- Jeu direct contre les fantômes ---
-    private static void startDirectPlayPhase(JFrame frame, boolean userAStar) {
+    private static void startDirectPlayPhase(JFrame frame, boolean[] config) {
         currentPhase = GamePhase.DIRECT_PLAY;
-        currentGhostAStar = userAStar;
-        GameLogic.GHOST_A_STAR = userAStar;
+        currentGhostConfig = config;
         desiredAction = Action.NONE;
-        System.out.println(">>> MODE : JEU DIRECT (Fantomes " + (userAStar ? "A*" : "Gloutons") + ")");
+        System.out.println(">>> MODE : JEU DIRECT (Config Custom)");
         startGame(frame);
     }
 
@@ -139,32 +177,24 @@ public class LocalClient {
     }
 
     // --- Phase 2 : Simulation (l'ordi rejoue avec les fantômes) ---
-    private static void startSimulationPhase(JFrame frame, boolean useAStar) {
+    private static void startSimulationPhase(JFrame frame, boolean[] config) {
         currentPhase = GamePhase.SIMULATION;
-        currentGhostAStar = useAStar;
-        GameLogic.GHOST_A_STAR = useAStar;
+        currentGhostConfig = config;
         simulationLog.clear();
         
         // En-tête du fichier
         simulationLog.add("TICK;PAC_X;PAC_Y;BLINKY_X;BLINKY_Y;PINKY_X;PINKY_Y;INKY_X;INKY_Y;CLYDE_X;CLYDE_Y;EVENT");
 
-        System.out.println(">>> DÉBUT PHASE 2 : SIMULATION (Fantomes " + (useAStar ? "A*" : "Gloutons") + ")");
+        System.out.println(">>> DÉBUT PHASE 2 : SIMULATION");
         startGame(frame);
     }
 
     // --- Phase 3 : IA joue à la place du joueur ---
-    private static void startAIPhase(JFrame frame, PacmanAI.Strategy strategy) {
+    private static void startAIPhase(JFrame frame, PacmanAI.Strategy strategy, boolean[] ghostConfig) {
         currentPhase = GamePhase.AI_PLAY;
         currentAIStrategy = strategy;
+        currentGhostConfig = ghostConfig;
         bot.setStrategy(strategy);
-
-        if (strategy == PacmanAI.Strategy.MINIMAX) {
-            GameLogic.GHOST_A_STAR = true;
-            currentGhostAStar = true;
-        } else {
-            GameLogic.GHOST_A_STAR = false;
-            currentGhostAStar = false;
-        }
 
         desiredAction = Action.NONE;
         System.out.println(">>> MODE : IA AUTO (" + strategy + ")");
@@ -192,7 +222,7 @@ public class LocalClient {
         EntityPos clyde = new EntityPos(cfg.clydeSpawn.x(), cfg.clydeSpawn.y(), cfg.clydeSpawn.dx(), cfg.clydeSpawn.dy());
 
         // Création de l'état du jeu local
-        localGameState = new GameState(maze, pf, cfg, pac, blinky, pinky, inky, clyde);
+        localGameState = new GameState(maze, pf, cfg, pac, blinky, pinky, inky, clyde, currentGhostConfig);
 
         // Reset trackers
         lastScore = 0;
@@ -339,7 +369,7 @@ public class LocalClient {
     // Fin pour le mode "Jeu Direct"
     private static void handleGameOver(MazeVisualizerPanel panel, String message) {
         JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(panel);
-        Object[] options = {"Rejouer (Même IA)","Changer IA", "Retour au Menu", "Quitter"};
+        Object[] options = {"Rejouer (Même Config)","Changer Config", "Retour au Menu", "Quitter"};
         
         int n = JOptionPane.showOptionDialog(frame, 
             message + "\nScore final : " + localGameState.score(), 
@@ -348,19 +378,19 @@ public class LocalClient {
             JOptionPane.INFORMATION_MESSAGE, 
             null, options, options[0]);
 
-        if (n == 0) startDirectPlayPhase(frame, currentGhostAStar);
+        if (n == 0) startDirectPlayPhase(frame, currentGhostConfig);
         else if (n == 1) {
-            boolean useAStar = askGhostDifficulty(frame);
-            startDirectPlayPhase(frame, useAStar);
+            boolean[] config = askGhostConfiguration(frame);
+            startDirectPlayPhase(frame, config);
         }
         else if (n == 2) showMainMenu(frame);
         else System.exit(0);
     }
 
-    // Fin pour le mode "Jeu Direct"
+    // Fin pour le mode "IA Gaming"
     private static void handleIAGameOver(MazeVisualizerPanel panel, String message, PacmanAI.Strategy strategy) {
         JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(panel);
-        Object[] options = {"Rejouer (Même IA)", "Changer IA", "Retour au Menu", "Quitter"};
+        Object[] options = {"Rejouer (Même Config)", "Changer Config", "Retour au Menu", "Quitter"};
         
         int n = JOptionPane.showOptionDialog(frame, 
             message + "\nScore final : " + localGameState.score(), 
@@ -369,11 +399,15 @@ public class LocalClient {
             JOptionPane.INFORMATION_MESSAGE, 
             null, options, options[0]);
 
-        if (n == 0) startAIPhase(frame, strategy);
+        if (n == 0) startAIPhase(frame, strategy, currentGhostConfig);
         else if (n == 1) {
-            boolean useAStar = askGhostDifficulty(frame);
-            PacmanAI.Strategy newStrategy = useAStar ? PacmanAI.Strategy.MINIMAX : PacmanAI.Strategy.EXPECTIMAX;
-            startAIPhase(frame, newStrategy);
+            boolean[] ghostConfig = askGhostConfiguration(frame);
+            int countAStar = 0;
+            for(boolean b : ghostConfig) if(b) countAStar++;
+            PacmanAI.Strategy newStrategy;
+            if (countAStar >= 2) newStrategy = PacmanAI.Strategy.MINIMAX;
+            else newStrategy = PacmanAI.Strategy.EXPECTIMAX;
+            startAIPhase(frame, newStrategy, ghostConfig);
         } else if (n == 2) showMainMenu(frame);
         else System.exit(0);
     }
@@ -393,8 +427,8 @@ public class LocalClient {
         );
         if (n == JOptionPane.YES_OPTION) {
             // On demande la difficulté des fantômes
-            boolean useAStar = askGhostDifficulty(frame);
-            startSimulationPhase(frame, useAStar);
+            boolean[] config = askGhostConfiguration(frame);
+            startSimulationPhase(frame, config);
         } else {
             System.exit(0);
         }
@@ -418,8 +452,8 @@ public class LocalClient {
             options[0]);
 
         if (n == 0) {
-            boolean useAStar = askGhostDifficulty(frame);
-            startSimulationPhase(frame, useAStar);
+            boolean[] config = askGhostConfiguration(frame);
+            startSimulationPhase(frame, config);
         } else if (n == 1) {
             startRecordingPhase(frame);
         } else if (n == 2) {
