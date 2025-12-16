@@ -7,6 +7,9 @@ import java.util.List;
 import java.util.Map;
 
 import javax.swing.*;
+
+import com.google.gson.Gson;
+
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.*;
@@ -23,8 +26,9 @@ import Game.*;
  */
 public class LocalClient {
 
-    private static final String INPUT_FILE = "trajectoire_joueur.txt";
-    private static final String OUTPUT_FILE = "resultat_simulation.txt";
+    private static final String METRICS_DIR = "metrics"; 
+    private static final String INPUT_FILE = METRICS_DIR + "/trajectoire_joueur.txt";
+    private static final String MAZE_FILE = METRICS_DIR + "/maze.json";
     
     // --- Etat Global ---
     private static GameState localGameState = null;
@@ -32,10 +36,6 @@ public class LocalClient {
     private static MazeData data = null;
     private static final GameClient API_CLIENT = new GameClient();
     private static final PacmanAI bot = new PacmanAI();
-
-    // --- Suivi du score et des vies pour les logs ---
-    private static int lastScore = 0;
-    private static int lastLives = 3;
 
     // --- Phases de jeu ---
     private enum GamePhase { DIRECT_PLAY, RECORDING, SIMULATION, AI_PLAY};
@@ -49,8 +49,7 @@ public class LocalClient {
 
     // --- Données du jeu ---
     private static Action desiredAction = Action.NONE;
-    private static List<String> recordedPath = new ArrayList<>();   // Partie 1 (Input)
-    private static List<String> simulationLog = new ArrayList<>();  // Partie 2 (Output)
+    private static List<String> recordedPath = new ArrayList<>();   // Pour l'enregistrement des mouvements du joueur
 
     public static void main(String[] args) {
         try {
@@ -170,8 +169,7 @@ public class LocalClient {
     private static void startRecordingPhase(JFrame frame) {
         currentPhase = GamePhase.RECORDING;
         recordedPath.clear();
-        desiredAction = Action.NONE; // Reset des inputs clavier
-        
+        desiredAction = Action.NONE; // Reset des inputs clavier 
         System.out.println(">>> DÉBUT PHASE 1 : ENREGISTREMENT (Joueur aux commandes)");
         startGame(frame); 
     }
@@ -180,11 +178,6 @@ public class LocalClient {
     private static void startSimulationPhase(JFrame frame, boolean[] config) {
         currentPhase = GamePhase.SIMULATION;
         currentGhostConfig = config;
-        simulationLog.clear();
-        
-        // En-tête du fichier
-        simulationLog.add("TICK;PAC_X;PAC_Y;BLINKY_X;BLINKY_Y;PINKY_X;PINKY_Y;INKY_X;INKY_Y;CLYDE_X;CLYDE_Y;EVENT");
-
         System.out.println(">>> DÉBUT PHASE 2 : SIMULATION");
         startGame(frame);
     }
@@ -195,7 +188,6 @@ public class LocalClient {
         currentAIStrategy = strategy;
         currentGhostConfig = ghostConfig;
         bot.setStrategy(strategy);
-
         desiredAction = Action.NONE;
         System.out.println(">>> MODE : IA AUTO (" + strategy + ")");
         startGame(frame);
@@ -223,10 +215,6 @@ public class LocalClient {
 
         // Création de l'état du jeu local
         localGameState = new GameState(maze, pf, cfg, pac, blinky, pinky, inky, clyde, currentGhostConfig);
-
-        // Reset trackers
-        lastScore = 0;
-        lastLives = localGameState.lives();
 
         // Récupère l'instance existante du MazeVisualizerPanel
         MazeVisualizerPanel panel = (MazeVisualizerPanel) frame.getContentPane().getComponent(0);
@@ -294,9 +282,7 @@ public class LocalClient {
                     String[] parts = recordedPath.get(tick).split(",");
                     localGameState.pac.setX(Integer.parseInt(parts[0]));
                     localGameState.pac.setY(Integer.parseInt(parts[1]));
-
                     GameLogic.stepReplay(localGameState);
-                    logSimulationStep();
                 } else {
                     // Fin du replay
                     ((Timer)ev.getSource()).stop();
@@ -328,42 +314,6 @@ public class LocalClient {
         Timer t = new Timer(500, e -> action.run());
         t.setRepeats(false);
         t.start();
-    }
-
-    // --- Journalisation de la simulation ---
-
-    // Enregistre un pas de la simulation dans le log
-    private static void logSimulationStep() {
-        String event = "RUNNING";
-
-        int currentScore = localGameState.score();
-        int currentLives = localGameState.lives();
-
-        if (currentLives < lastLives) {
-            if (currentLives == 0){
-                event = "DEATH";
-            } else {
-                event = "LOSE_LIFE";
-            }
-        } else if (localGameState.levelCleared) {
-            event = "WIN";
-        } else {
-            int diff = currentScore - lastScore;
-            if (diff > 0) {
-                if (diff == 10) event = "EAT_PELLET";
-                else if (diff == 50) event = "EAT_POWER";
-                else if (diff >= 200) event = "EAT_GHOST";
-            }
-        }
-        lastScore = currentScore;
-        lastLives = currentLives;
-
-        String line = String.format("%d; %d; %d; %d; %d; %d; %d; %d; %d; %d; %d; %s", 
-            localGameState.tick(), localGameState.pac.x(), localGameState.pac.y(),
-            localGameState.blinky.pos.x(), localGameState.blinky.pos.y(), localGameState.pinky.pos.x(), localGameState.pinky.pos.y(),
-            localGameState.inky.pos.x(), localGameState.inky.pos.y(), localGameState.clyde.pos.x(), localGameState.clyde.pos.y(), event
-        );
-        simulationLog.add(line);
     }
 
     // Fin pour le mode "Jeu Direct"
@@ -414,14 +364,18 @@ public class LocalClient {
     
     // Gère la fin de l'enregistrement et affiche les options à l'utilisateur
     private static void handleRecordingFinished(MazeVisualizerPanel panel) {
+        File dir = new File(METRICS_DIR);
+        if (!dir.exists()) dir.mkdirs();
+        // Sauvegarde la trajectoire et le labyrinthe
         saveToFile(INPUT_FILE, recordedPath);
-        System.out.println("Trajectoire enregistrée.");
+        saveMazeToFile(MAZE_FILE, data);
+        System.out.println("Trajectoire et labyrinthe sauvegardés.");
         JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(panel);
         
         // On lance la simulation ?
         int n = JOptionPane.showConfirmDialog(
             frame,
-            "Trajectoire enregistrée.\n\nVoulez-vous lancer la simulation avec le fantôme ?",
+            "Trajectoire et Labyrinthe enregistrée.\n\nVoulez-vous lancer la simulation avec les fantômes ?",
             "Phase Suivante",
             JOptionPane.YES_NO_OPTION
         );
@@ -435,15 +389,12 @@ public class LocalClient {
     }
 
     // Gère la fin de la simulation et affiche les options à l'utilisateur
-    private static void handleSimulationFinished(MazeVisualizerPanel panel, String message) {
-        saveToFile(OUTPUT_FILE, simulationLog);
-        System.out.println("Rapport de simulation généré.");
-        
+    private static void handleSimulationFinished(MazeVisualizerPanel panel, String message) {        
         JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(panel);
         Object[] options = {"Rejouer Simulation", "Nouvelle Trajectoire","Retour au Menu", "Quitter"};
         
         int n = JOptionPane.showOptionDialog(frame,
-            message + "\n\nRésultat sauvegardé dans : " + OUTPUT_FILE + "\nQue faire ?",
+            message + "\nQue faire ?",
             "Fin Simulation",
             JOptionPane.YES_NO_OPTION,
             JOptionPane.INFORMATION_MESSAGE,
@@ -472,6 +423,17 @@ public class LocalClient {
             System.err.println("Erreur sauvegarde " + filename + ": " + e.getMessage());
         }
     }
+
+    // Sauvegarde les données du labyrinthe dans un fichier
+    private static void saveMazeToFile(String filename, MazeData data) {
+        try (Writer writer = new FileWriter(filename)) {
+            new Gson().toJson(data, writer);
+            System.out.println("Labyrinthe sauvegardé dans : " + filename);
+        } catch (IOException e) {
+            System.err.println("Erreur sauvegarde labyrinthe : " + e.getMessage());
+        }
+    }
+
 
     // --- Interface Graphique et Interaction avec l'API ---
 

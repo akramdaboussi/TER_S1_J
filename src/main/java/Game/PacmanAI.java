@@ -15,7 +15,7 @@ public class PacmanAI {
 
     public void setStrategy(Strategy strategy) {
         this.currentStrategy = strategy;
-        System.out.println("Stratégie IA : " + strategy);
+        // System.out.println("Stratégie IA : " + strategy);
     }
 
     // Paramètres de recherche
