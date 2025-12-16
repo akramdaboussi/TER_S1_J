@@ -14,7 +14,9 @@ target/
 *.iml
 
 # Fichiers de données générés par le jeu (Enregistrement & Simulation)
-trajectoire_joueur.txt
-resultat_simulation.txt
+metrics/trajectoire_joueur.txt
 replay.txt
-*.csv
+metrics/*.csv
+metrics/maze.json
+metrics/courbe_score_replay.png
+metrics/courbe_victoire_ia.png
