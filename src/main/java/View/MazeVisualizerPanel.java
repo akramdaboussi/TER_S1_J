@@ -15,14 +15,12 @@ import java.io.IOException;
 public class MazeVisualizerPanel extends JPanel {
 
     // Sprites
-    private BufferedImage pacmanImg;
     private BufferedImage blinkyImg;
     private BufferedImage pinkyImg;
     private BufferedImage inkyImg;
     private BufferedImage clydeImg;
 
     // Animations
-    private BufferedImage[] pacmanAnim;
     private BufferedImage[] blinkyAnim;
     private BufferedImage[] pinkyAnim;
     private BufferedImage[] inkyAnim;
@@ -32,14 +30,13 @@ public class MazeVisualizerPanel extends JPanel {
 
 
     // Frames
-    private int pacmanFrame = 0;
     private int blinkyFrame = 0;
     private int pinkyFrame  = 0;
     private int inkyFrame   = 0;
     private int clydeFrame  = 0;
     private int animTick = 0;
 
-    // Configuration
+    // Configuration Graphique
     private final int[][] mazeGrid;
     private static final int CELL_SIZE = 24;
 
@@ -67,10 +64,6 @@ public class MazeVisualizerPanel extends JPanel {
     private static final int SPRITE_HEIGHT = 14;
     private static final int SPRITE_GAP    = 3;
 
-    private static final int[] PACMAN_WIDTHS = {
-        13, 9, 13, 9, 13, 9, 13, 9
-    };
-
     //Frightened
     private boolean frightened = false;
     private long frightenedStartTime = 0;
@@ -79,25 +72,25 @@ public class MazeVisualizerPanel extends JPanel {
     private static final int FRIGHTENED_DURATION = 6000;
     private static final int FRIGHTENED_BLINK_TIME = 2000;
 
+    // Initialise le panneau avec la grille statique du labyrinthe.
     public MazeVisualizerPanel(int[][] grid) {
         this.mazeGrid = grid;
 
         int panelWidth = grid[0].length * CELL_SIZE;
         int panelHeight = grid.length * CELL_SIZE;
 
+        // Espace pour le HUD en bas
         setPreferredSize(new Dimension(panelWidth, panelHeight + 40));
         setBackground(COLOR_BG);
         setFocusable(true);
         requestFocusInWindow();
 
         try {
-            pacmanImg = ImageIO.read(getClass().getResource("/img/Pacman.png"));
             blinkyImg = ImageIO.read(getClass().getResource("/img/Blinky.png"));
             pinkyImg  = ImageIO.read(getClass().getResource("/img/Pinky.png"));
             inkyImg   = ImageIO.read(getClass().getResource("/img/Inky.png"));
             clydeImg  = ImageIO.read(getClass().getResource("/img/Clyde.png"));
 
-            pacmanAnim = splitPacmanSprite(pacmanImg);
             blinkyAnim = splitSprite(blinkyImg);
             pinkyAnim  = splitSprite(pinkyImg);
             inkyAnim   = splitSprite(inkyImg);
@@ -122,33 +115,8 @@ public class MazeVisualizerPanel extends JPanel {
         return frames;
     }
 
-    // Découpe Pacman
-    private BufferedImage[] splitPacmanSprite(BufferedImage sheet) {
-        BufferedImage[] frames = new BufferedImage[8];
-        int x = 0;
-
-        for (int i = 0; i < 8; i++) {
-            frames[i] = sheet.getSubimage(
-                x,
-                0,
-                PACMAN_WIDTHS[i],
-                SPRITE_HEIGHT
-            );
-            x += PACMAN_WIDTHS[i] + SPRITE_GAP;
-        }
-        return frames;
-    }
-
-    private int getPacmanBaseFrame(Map<String, Integer> data) {
-        int dx = data.getOrDefault("dx", 0);
-        int dy = data.getOrDefault("dy", 0);
-
-        if (dx > 0) return 0;
-        if (dx < 0) return 2;
-        if (dy < 0) return 4;
-        return 6;
-    }
-
+    // Met à jour toutes les données d'affichage et redessine la scène.
+    // Appelée à chaque tick par le contrôleur.
     public void updateGameState(Map<String, Integer> pac, Map<String, Integer> blinky,
                                 Map<String, Integer> pinky, Map<String, Integer> inky,
                                 Map<String, Integer> clyde,
@@ -175,6 +143,7 @@ public class MazeVisualizerPanel extends JPanel {
         repaint();
     }
 
+    // Dessin du panneau
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
@@ -182,18 +151,20 @@ public class MazeVisualizerPanel extends JPanel {
 
         animTick++;
         if (animTick % 6 == 0) {
-            pacmanFrame = (pacmanFrame + 1) % 2;
             blinkyFrame = (blinkyFrame + 1) % 2;
             pinkyFrame  = (pinkyFrame  + 1) % 2;
             inkyFrame   = (inkyFrame   + 1) % 2;
             clydeFrame  = (clydeFrame  + 1) % 2;
         }
 
+        // Fond rétro
         g2d.setColor(COLOR_BG);
         g2d.fillRect(0, 0, getWidth(), getHeight());
 
+        // Murs creux
         drawArcadeWalls(g2d);
 
+        // Murs creux
         if (pacPosData != null) {
             drawPellets(g2d);
             drawPacman(g2d);
@@ -201,6 +172,7 @@ public class MazeVisualizerPanel extends JPanel {
             drawRetroHUD(g2d);
         }
 
+        // Gère la fin du mode frightened
         if (frightened) {
             long elapsed = System.currentTimeMillis() - frightenedStartTime;
             if (elapsed > FRIGHTENED_DURATION) {
@@ -210,21 +182,26 @@ public class MazeVisualizerPanel extends JPanel {
 
     }
 
-    private void drawPacman(Graphics2D g) { // dessine pacman
+    // Dessine Pacman
+    private void drawPacman(Graphics2D g) {
         int px = pacPosData.get("x") * CELL_SIZE;
         int py = pacPosData.get("y") * CELL_SIZE;
-        int base = getPacmanBaseFrame(pacPosData);
 
-        g.drawImage(
-            pacmanAnim[base + pacmanFrame],
-            px,
-            py,
-            CELL_SIZE,
-            CELL_SIZE,
-            null
+        // Marge pour ne pas toucher les murs
+        int margin = 3;
+        int size = CELL_SIZE - 2 * margin;
+
+        g.setColor(Color.YELLOW);
+        g.fillOval(
+            px + margin,
+            py + margin,
+            size,
+            size
         );
     }
 
+
+    // Dessine fantôme frightened
     private void drawFrightenedGhost(Graphics2D g, Map<String, Integer> pos) {
         long elapsed = System.currentTimeMillis() - frightenedStartTime;
         long remaining = FRIGHTENED_DURATION - elapsed;
@@ -249,7 +226,7 @@ public class MazeVisualizerPanel extends JPanel {
         );
     }
 
-
+    // Dessine les fantômes
     private void drawGhosts(Graphics2D g) { 
         if (frightened) {
             drawFrightenedGhost(g, blinkyPosData);
@@ -266,7 +243,7 @@ public class MazeVisualizerPanel extends JPanel {
 
     
 
-
+    // dessine fantome avec bonne direction
     private void drawGhost(Graphics2D g, BufferedImage[] anim,
                            Map<String, Integer> pos, int frame) { 
         int base = getGhostBaseFrame(pos);
@@ -278,7 +255,7 @@ public class MazeVisualizerPanel extends JPanel {
 
     
 
-    private int getGhostBaseFrame(Map<String, Integer> data) { // direction fantôme
+    private int getGhostBaseFrame(Map<String, Integer> data) { // Direction fantôme
         int dx = data.getOrDefault("dx", 0);
         int dy = data.getOrDefault("dy", 0);
 
@@ -289,8 +266,7 @@ public class MazeVisualizerPanel extends JPanel {
     }
 
 
-    // 
-
+    // Dessine les pastilles
     private void drawPellets(Graphics2D g) {
         g.setColor(COLOR_PELLET);
         for (int y = 0; y < smallPelletsData.length; y++) {
@@ -308,33 +284,42 @@ public class MazeVisualizerPanel extends JPanel {
         }
     }
 
-    private void drawRetroHUD(Graphics2D g) { // affichage style arcade
+    // Affiche le HUD (Score, Vies, Mode) en bas de l'écran
+    private void drawRetroHUD(Graphics2D g) { 
         int yPos = getHeight() - 12;
-        g.setFont(new Font("Monospaced", Font.BOLD, 16));
+        g.setFont(new Font("Monospaced", Font.BOLD, 16)); 
         g.setColor(COLOR_TEXT);
 
+        // Mode à gauche
         g.drawString(currentMode, 10, yPos);
 
+        // Score centré
         String scoreText = "SCORE: " + currentScore;
         g.drawString(scoreText,
                 getWidth() / 2 - g.getFontMetrics().stringWidth(scoreText) / 2,
                 yPos);
-
+        
+        // Vies à droite
         String livesText = "VIES: " + currentLives;
         g.drawString(livesText,
                 getWidth() - g.getFontMetrics().stringWidth(livesText) - 10,
                 yPos);
-
+        
+        // Ligne de séparation bleue
         g.setColor(COLOR_WALL_OUTLINE);
         g.setStroke(new BasicStroke(2));
         g.drawLine(0, getHeight() - 40, getWidth(), getHeight() - 40);
     }
 
+    // Dessine les murs en deux passes pour créer l'effet "double trait" arcade
     private void drawArcadeWalls(Graphics2D g2d) {
+        // Le contour (Gros trait bleu)
         drawMazePath(g2d, COLOR_WALL_OUTLINE, CELL_SIZE - 4);
+        // L'intérieur (Trait moyen noir pour creuser)
         drawMazePath(g2d, COLOR_BG, CELL_SIZE - 10);
     }
 
+    // Dessine la structure des murs selon l'épaisseur donnée
     private void drawMazePath(Graphics2D g2d, Color color, float thickness) { 
         int halfCell = CELL_SIZE / 2;
         g2d.setColor(color);
@@ -355,10 +340,10 @@ public class MazeVisualizerPanel extends JPanel {
         }
     }
 
-
-    private boolean est_mur(int y, int x) { // check si mur
+    // Vérifie si une case de la grille est un mur
+    private boolean est_mur(int y, int x) { 
         if (x < 0 || x >= mazeGrid[0].length || y < 0 || y >= mazeGrid.length) return false;
         int v = mazeGrid[y][x];
-        return v == 1 || v == 2;
+        return v == 1 || v == 2; // 1 = mur, 2 = mur permanent
     }
 }
