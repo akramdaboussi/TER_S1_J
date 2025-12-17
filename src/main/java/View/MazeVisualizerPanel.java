@@ -30,6 +30,7 @@ public class MazeVisualizerPanel extends JPanel {
 
 
     // Frames
+    private int pacmanFrame = 0;
     private int blinkyFrame = 0;
     private int pinkyFrame  = 0;
     private int inkyFrame   = 0;
@@ -151,6 +152,7 @@ public class MazeVisualizerPanel extends JPanel {
 
         animTick++;
         if (animTick % 6 == 0) {
+            pacmanFrame = (pacmanFrame + 1) % 2;
             blinkyFrame = (blinkyFrame + 1) % 2;
             pinkyFrame  = (pinkyFrame  + 1) % 2;
             inkyFrame   = (inkyFrame   + 1) % 2;
@@ -187,18 +189,38 @@ public class MazeVisualizerPanel extends JPanel {
         int px = pacPosData.get("x") * CELL_SIZE;
         int py = pacPosData.get("y") * CELL_SIZE;
 
-        // Marge pour ne pas toucher les murs
         int margin = 3;
         int size = CELL_SIZE - 2 * margin;
 
+        int dx = pacPosData.getOrDefault("dx", 0);
+        int dy = pacPosData.getOrDefault("dy", 0);
+
+        // Animation bouche (0 → ouverte, 1 → fermée)
+        int mouthAngle = (pacmanFrame == 0) ? 40 : 10;
+
+        int startAngle;
+
+        if (dx > 0) {          // RIGHT
+            startAngle = mouthAngle;
+        } else if (dx < 0) {   // LEFT
+            startAngle = 180 + mouthAngle;
+        } else if (dy < 0) {   // UP
+            startAngle = 90 + mouthAngle;
+        } else {               // DOWN ou immobile
+            startAngle = 270 + mouthAngle;
+        }
+
         g.setColor(Color.YELLOW);
-        g.fillOval(
+        g.fillArc(
             px + margin,
             py + margin,
             size,
-            size
+            size,
+            startAngle,
+            360 - 2 * mouthAngle
         );
     }
+
 
 
     // Dessine fantôme frightened
