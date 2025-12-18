@@ -65,7 +65,7 @@ public class MazeGenerator {
         }
 
         // Suppression des culs-de-sac pour créer des boucles supplémentaires
-        //removeDeadEnds(maze, random);
+        removeDeadEnds(maze, random);
     }
 
     /*
@@ -83,7 +83,6 @@ public class MazeGenerator {
     /*
      * Supprimme les culs-de-sac en cassant des murs de manière symétrique
     */
-   /*
     private void removeDeadEnds(Maze maze, Random random) {
         int width = maze.getWidth();
         int height = maze.getHeight();
@@ -140,7 +139,6 @@ public class MazeGenerator {
             }
         } while (deadEndRemoved); 
     }
-    */
 
     /*
      * Construit la liste de toutes les paires de murs symétriques potentiels.
