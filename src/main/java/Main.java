@@ -61,6 +61,7 @@ public class Main {
             // Applique la structure de base (murs extérieurs, maison des fantômes)
             maze.applyTemplate();
             // Instancie un générateur et lance l'algorithme sur le labyrinthe
+            
             MazeGenerator generator = new MazeGenerator();
             generator.generate(maze, random);
 
