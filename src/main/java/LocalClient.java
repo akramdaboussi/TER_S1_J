@@ -40,9 +40,6 @@ public class LocalClient {
     // --- Phases de jeu ---
     private enum GamePhase { DIRECT_PLAY, RECORDING, SIMULATION, AI_PLAY};
     private static GamePhase currentPhase = GamePhase.DIRECT_PLAY;
-
-    // --- Pour l'affichage et le restart ---
-    private static PacmanAI.Strategy currentAIStrategy = PacmanAI.Strategy.EXPECTIMAX;
     
     // --- Configuration des fantômes ---
     private static boolean[] currentGhostConfig = new boolean[]{false, false, false, false};
@@ -100,12 +97,7 @@ public class LocalClient {
         else if (n == 1) startRecordingPhase(frame);
         else if (n == 2){
             boolean[] ghostConfig = askGhostConfiguration(frame);
-            int countAStar = 0;
-            for(boolean b : ghostConfig) if(b) countAStar++;
-            PacmanAI.Strategy strategy;
-            if (countAStar >= 2) strategy = PacmanAI.Strategy.MINIMAX;
-            else strategy = PacmanAI.Strategy.EXPECTIMAX;
-            startAIPhase(frame, strategy, ghostConfig);
+            startAIPhase(frame, ghostConfig);
         } else System.exit(0);
     }
 
@@ -183,13 +175,11 @@ public class LocalClient {
     }
 
     // --- Phase 3 : IA joue à la place du joueur ---
-    private static void startAIPhase(JFrame frame, PacmanAI.Strategy strategy, boolean[] ghostConfig) {
+    private static void startAIPhase(JFrame frame, boolean[] ghostConfig) {
         currentPhase = GamePhase.AI_PLAY;
-        currentAIStrategy = strategy;
         currentGhostConfig = ghostConfig;
-        bot.setStrategy(strategy);
         desiredAction = Action.NONE;
-        System.out.println(">>> MODE : IA AUTO (" + strategy + ")");
+        System.out.println(">>> MODE : IA AUTO (MINIMAX)");
         startGame(frame);
     }
 
@@ -256,10 +246,10 @@ public class LocalClient {
                 GameLogic.step(localGameState);
                 if (localGameState.lives() <= 0) {
                     ((Timer)ev.getSource()).stop();
-                    finishPhase(panel, () -> handleIAGameOver(panel, "L'IA a perdu...", currentAIStrategy));
+                    finishPhase(panel, () -> handleIAGameOver(panel, "L'IA a perdu..."));
                 } else if (localGameState.levelCleared) {
                     ((Timer)ev.getSource()).stop();
-                    finishPhase(panel, () -> handleIAGameOver(panel, "L'IA a gagné le niveau !", currentAIStrategy));
+                    finishPhase(panel, () -> handleIAGameOver(panel, "L'IA a gagné le niveau !"));
                 }
             } else if (currentPhase == GamePhase.RECORDING) {
                 // Mise à jour de la direction souhaitée
@@ -338,7 +328,7 @@ public class LocalClient {
     }
 
     // Fin pour le mode "IA Gaming"
-    private static void handleIAGameOver(MazeVisualizerPanel panel, String message, PacmanAI.Strategy strategy) {
+    private static void handleIAGameOver(MazeVisualizerPanel panel, String message) {
         JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(panel);
         Object[] options = {"Rejouer (Même Config)", "Changer Config", "Retour au Menu", "Quitter"};
         
@@ -349,15 +339,10 @@ public class LocalClient {
             JOptionPane.INFORMATION_MESSAGE, 
             null, options, options[0]);
 
-        if (n == 0) startAIPhase(frame, strategy, currentGhostConfig);
+        if (n == 0) startAIPhase(frame, currentGhostConfig);
         else if (n == 1) {
             boolean[] ghostConfig = askGhostConfiguration(frame);
-            int countAStar = 0;
-            for(boolean b : ghostConfig) if(b) countAStar++;
-            PacmanAI.Strategy newStrategy;
-            if (countAStar >= 2) newStrategy = PacmanAI.Strategy.MINIMAX;
-            else newStrategy = PacmanAI.Strategy.EXPECTIMAX;
-            startAIPhase(frame, newStrategy, ghostConfig);
+            startAIPhase(frame, ghostConfig);
         } else if (n == 2) showMainMenu(frame);
         else System.exit(0);
     }
@@ -521,7 +506,7 @@ public class LocalClient {
             case DIRECT_PLAY -> "JEU (Direct)";
             case RECORDING -> "REC (Joueur)";
             case SIMULATION -> "REPLAY (IA)";
-            case AI_PLAY -> "IA (" + currentAIStrategy + ")";
+            case AI_PLAY -> "IA (MINIMAX)";
         };
         return new GameStateResponse(
             mode, s.tick(), s.score(), s.lives(), s.levelCleared, s.isFrightened(), 

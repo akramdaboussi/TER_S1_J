@@ -5,19 +5,6 @@ import java.util.LinkedList;
 
 public class PacmanAI {
 
-    // Stratégies de l'IA Pac-Man   
-    public enum Strategy {
-        EXPECTIMAX, // Contre IA Glouton
-        MINIMAX     // Contre IA A*
-    }
-
-    private Strategy currentStrategy = Strategy.EXPECTIMAX; // Par défaut
-
-    public void setStrategy(Strategy strategy) {
-        this.currentStrategy = strategy;
-        // System.out.println("Stratégie IA : " + strategy);
-    }
-
     // Paramètres de recherche
     private static final int HORIZON = 4; // Profondeur de récursion (4 coups à l'avance)
     
@@ -38,62 +25,8 @@ public class PacmanAI {
         if (positionHistory.size() > MEMORY_SIZE) {
             positionHistory.removeFirst();
         }
-
-        // Choix de l'algorithme 
-        if (currentStrategy == Strategy.MINIMAX) {
-            return runMinimax(currentState);
-        } else {
-            return runExpectimax(currentState);
-        }
+        return runMinimax(currentState);
     }
-
-    
-    // Expectimax contre IA Glouton avec Monte-Carlo pour le mode aléatoire
-    private Action runExpectimax(GameState currentState) {
-        double bestValue = Double.NEGATIVE_INFINITY;
-        Action bestAction = Action.NONE;
-        Action currentDir = currentState.getCurrentDir();
-        Action[] possibleActions = {Action.UP, Action.DOWN, Action.LEFT, Action.RIGHT};
-
-        for (Action action : possibleActions) {
-            if (!isValidMove(currentState, action)) continue;
-
-            // Simulation de N scénarios futurs (Monte Carlo si fantômes aléatoires)
-            double sumValues = 0;
-            // Si fantomes effrayés, on fait 5 simulations, sinon 1 seule
-            int iterations = currentState.isFrightened() ? SAMPLES_FRIGHTENED : SAMPLES_CHASE;
-            for (int i = 0; i < iterations; i++) {
-                GameState nextState = currentState.copy();
-                nextState.setDesiredDir(action);
-                GameLogic.step(nextState); // Avance le jeu d'un tick
-                sumValues += expectimaxRecursive(nextState, HORIZON - 1);
-            }
-            // Moyenne des scores obtenus
-            double avgValue = sumValues / iterations;
-
-            // Application des sécurités (Anti-Boucle et Anti-Tremblement)
-            avgValue = applySafetyPenalties(avgValue, currentState, action, currentDir);
-
-            if (avgValue > bestValue) {
-                bestValue = avgValue;
-                bestAction = action;
-            }
-        }
-        return bestAction;
-    }
-
-    // Récursion Expectimax : alterne simulation et évaluation
-    private double expectimaxRecursive(GameState state, int depth) {
-        // Condition d'arrêt : profondeur atteinte ou fin de partie
-        if (depth == 0 || state.lives() <= 0 || state.levelCleared) {
-            return evaluate(state);
-        }
-        // On continue la simulation
-        GameState nextState = state.copy();
-        GameLogic.step(nextState);
-        return expectimaxRecursive(nextState, depth - 1);
-    }
-
 
     // Minimax contre IA A* avec élagage Alpha-Beta
     private Action runMinimax(GameState currentState) {
@@ -120,7 +53,7 @@ public class PacmanAI {
                 GameLogic.step(nextState);
                 sumValues += minimaxRecursive(nextState, HORIZON - 1, alpha, beta);
             }
-            // Moyenne des scores
+            // Moyenne des scores 
             double val = sumValues / iterations;
 
             // Application des sécurités (Anti-Boucle et Anti-Tremblement)
@@ -139,11 +72,11 @@ public class PacmanAI {
         if (depth == 0 || state.lives() <= 0 || state.levelCleared) {
             return evaluate(state);
         }
-
         double maxVal = Double.NEGATIVE_INFINITY;
+        Action possibleActions[] = {Action.UP, Action.DOWN, Action.LEFT, Action.RIGHT};
 
         // On explore les coups possibles de Pac-Man au tour suivant
-        for (Action action : new Action[]{Action.UP, Action.DOWN, Action.LEFT, Action.RIGHT}) {
+        for (Action action : possibleActions) {
             if (!isValidMove(state, action)) continue;
 
             GameState nextState = state.copy();
@@ -185,7 +118,6 @@ public class PacmanAI {
         if (visits > 1) {
             score -= 10000.0; 
         }
-
         // Anti-Tremblement
         if (action == getOpposite(currentDir)) {
             score -= 200.0; // Pénalise le demi-tour 
@@ -264,7 +196,6 @@ public class PacmanAI {
         int ny = s.pac.y() + dy;
         // Gestion du tunnel pour la validation
         if (nx < 0 || nx >= s.maze.getWidth()) return true; 
-
         CellState cs = s.maze.getState(nx, ny);
         return cs != CellState.MUR && cs != CellState.MUR_PERMANENT && cs != CellState.GHOST_HOUSE;
     }

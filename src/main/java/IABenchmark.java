@@ -50,7 +50,6 @@ public class IABenchmark {
         }
     }
 
-    
     // Boucle de test pour toutes les configurations de fantômes 
     private static void runIAConfigs(MazeData data, List<String> csvResults) {
         // Il y a 16 configurations possibles (2^4)
@@ -62,11 +61,7 @@ public class IABenchmark {
             config[3] = (i & 8) != 0; // Clyde
             
             String configName = configToReadableString(config);
-            
-            int countAStar = 0;
-            for(boolean b : config) if(b) countAStar++;
-            String strategyLabel = (countAStar >= 2) ? "MINIMAX" : "EXPECTIMAX";
-
+            String strategyLabel = "MINIMAX";
             System.out.print("Test Config " + configName + " [" + strategyLabel + "] : ");
 
             int wins = 0;
@@ -93,19 +88,7 @@ public class IABenchmark {
     private static GameResult simulateAI(MazeData data, boolean[] ghostConfig) {
         GameState state = initGame(data, ghostConfig);
         PacmanAI ai = new PacmanAI();
-
-        // Sélection automatique de la stratégie
-        int countAStar = 0;
-        for(boolean isAStar : ghostConfig) {
-            if(isAStar) countAStar++;
-        }
-
-        if (countAStar >= 2) {
-            ai.setStrategy(PacmanAI.Strategy.MINIMAX);
-        } else {
-            ai.setStrategy(PacmanAI.Strategy.EXPECTIMAX);
-        }
-
+        
         while (state.lives() > 0 && !state.levelCleared) {
             // Décision IA
             Action best = ai.getBestAction(state);
