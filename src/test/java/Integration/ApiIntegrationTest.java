@@ -51,8 +51,8 @@ public class ApiIntegrationTest {
             Maze maze = new Maze(width, height); 
             maze.applyTemplate();
             
-            //MazeGenerator generator = new MazeGenerator();
-            //generator.generate(maze, random); 
+            MazeGenerator generator = new MazeGenerator();
+            generator.generate(maze, random); 
 
             response.type("application/json");
             return maze.toJsonString(); 

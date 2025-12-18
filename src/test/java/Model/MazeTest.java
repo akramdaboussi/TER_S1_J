@@ -52,8 +52,8 @@ public class MazeTest {
         Maze maze = new Maze(DEFAULT_WIDTH, DEFAULT_HEIGHT);
         maze.applyTemplate();
         
-        //MazeGenerator generator = new MazeGenerator();
-        //generator.generate(maze, new Random(seed)); 
+        MazeGenerator generator = new MazeGenerator();
+        generator.generate(maze, new Random(seed)); 
 
         int width = maze.getWidth();
         
